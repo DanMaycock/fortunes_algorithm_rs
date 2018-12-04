@@ -6,4 +6,5 @@ authors = ["Daniel Maycock <DanMaycock13@googlemail.com>"]
 [dependencies]
 generational-arena = "0.1.0"
 rand = "0.6.0"
+log = "0.4.6"
 

@@ -1,9 +1,9 @@
-use crate::Point;
 use generational_arena::Index;
+use vector2::Vector2;
 
 pub enum EventType {
     SiteEvent { site: Index },
-    CircleEvent { point: Point, arc: Index },
+    CircleEvent { point: Vector2, arc: Index },
 }
 
 pub struct Event {
@@ -29,7 +29,7 @@ impl EventQueue {
         self.sift_up(new_index);
     }
 
-    pub fn add_circle_event(&mut self, y: f64, point: Point, arc: Index) {
+    pub fn add_circle_event(&mut self, y: f64, point: Vector2, arc: Index) {
         self.queue.push(Event {
             y,
             event_type: EventType::CircleEvent { point, arc },
@@ -44,10 +44,6 @@ impl EventQueue {
 
     pub fn remove_event(&mut self, index: usize) {
         self.queue.remove(index);
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.queue.is_empty()
     }
 
     fn sift_up(&mut self, index: usize) {
