@@ -1,5 +1,5 @@
+use crate::vector2::Vector2;
 use generational_arena::{Arena, Index};
-use vector2::Vector2;
 
 pub struct Site {
     pub point: Vector2,
@@ -27,6 +27,12 @@ struct Vertex {
     point: Vector2,
 }
 
+impl Vertex {
+    fn new(point: Vector2) -> Self {
+        Vertex { point }
+    }
+}
+
 struct HalfEdge {
     origin: Option<Index>,
     destination: Option<Index>,
@@ -49,7 +55,7 @@ impl HalfEdge {
     }
 }
 
-struct Face {
+pub struct Face {
     site: Option<Index>,
     outer_component: Option<Index>,
 }
@@ -116,12 +122,16 @@ impl Voronoi {
         new_half_edge
     }
 
+    pub fn create_vertex(&mut self, point: Vector2) -> Index {
+        self.vertices.insert(Vertex::new(point))
+    }
+
     pub fn get_site_point(&self, site: Index) -> Vector2 {
         let site = self.sites.get(site).unwrap();
         site.point
     }
 
-    fn get_site_face(&self, site: Index) -> Option<Index> {
+    pub fn get_site_face(&self, site: Index) -> Option<Index> {
         let site = self.sites.get(site).unwrap();
         site.face
     }
@@ -131,7 +141,7 @@ impl Voronoi {
         site.face = face;
     }
 
-    fn get_face_outer_component(&self, face: Index) -> Option<Index> {
+    pub fn get_face_outer_component(&self, face: Index) -> Option<Index> {
         let face = self.faces.get(face).unwrap();
         face.outer_component
     }
@@ -141,14 +151,103 @@ impl Voronoi {
         face.outer_component = half_edge;
     }
 
+    pub fn get_face_site(&self, face: Index) -> Option<Index> {
+        let face = self.faces.get(face).unwrap();
+        face.site
+    }
+
+    pub fn get_half_edge_twin(&self, half_edge: Index) -> Option<Index> {
+        let half_edge = self.half_edges.get(half_edge).unwrap();
+        half_edge.twin
+    }
+
     fn set_half_edge_twin(&mut self, half_edge: Index, twin_half_edge: Option<Index>) {
         let half_edge = self.half_edges.get_mut(half_edge).unwrap();
         half_edge.twin = twin_half_edge;
+    }
+
+    pub fn get_half_edge_incident_face(&self, half_edge: Index) -> Option<Index> {
+        let half_edge = self.half_edges.get(half_edge).unwrap();
+        half_edge.incident_face
     }
 
     fn add_site_for_point(&mut self, point: Vector2) -> Index {
         let site = Site::new(point);
         let site_index = self.sites.insert(site);
         site_index
+    }
+
+    pub fn get_half_edge_prev(&self, half_edge: Index) -> Option<Index> {
+        let half_edge = self.half_edges.get(half_edge).unwrap();
+        half_edge.prev
+    }
+
+    pub fn set_half_edge_prev(&mut self, half_edge: Index, prev_half_edge: Option<Index>) {
+        let half_edge = self.half_edges.get_mut(half_edge).unwrap();
+        half_edge.prev = prev_half_edge;
+    }
+
+    pub fn get_half_edge_next(&self, half_edge: Index) -> Option<Index> {
+        let half_edge = self.half_edges.get(half_edge).unwrap();
+        half_edge.next
+    }
+
+    pub fn set_half_edge_next(&mut self, half_edge: Index, next_half_edge: Option<Index>) {
+        let half_edge = self.half_edges.get_mut(half_edge).unwrap();
+        half_edge.next = next_half_edge;
+    }
+
+    pub fn set_half_edge_origin(&mut self, half_edge: Index, origin: Option<Index>) {
+        let half_edge = self.half_edges.get_mut(half_edge).unwrap();
+        half_edge.origin = origin;
+    }
+
+    pub fn get_half_edge_origin(&self, half_edge: Index) -> Option<Index> {
+        let half_edge = self.half_edges.get(half_edge).unwrap();
+        half_edge.origin
+    }
+
+    pub fn set_half_edge_destination(&mut self, half_edge: Index, destination: Option<Index>) {
+        let half_edge = self.half_edges.get_mut(half_edge).unwrap();
+        half_edge.destination = destination;
+    }
+
+    pub fn get_half_edge_destination(&self, half_edge: Index) -> Option<Index> {
+        let half_edge = self.half_edges.get(half_edge).unwrap();
+        half_edge.destination
+    }
+
+    pub fn get_vertex_point(&self, vertex: Index) -> Vector2 {
+        let vertex = self.vertices.get(vertex).unwrap();
+        vertex.point
+    }
+
+    pub fn get_voronoi_vertices(&self) -> Vec<Vector2> {
+        self.vertices
+            .iter()
+            .map(|(_, vertex)| vertex.point)
+            .collect()
+    }
+
+    pub fn get_delauney_vertices(&self) -> Vec<Vector2> {
+        self.faces
+            .iter()
+            .map(|(_, face)| self.get_site_point(face.site.unwrap()))
+            .collect()
+    }
+
+    pub fn print_vertices(&self) {
+        for (index, vertex) in &self.vertices {
+            println!("Vertex {:?} located at {:?}", index, vertex.point);
+        }
+    }
+
+    pub fn print_edges(&self) {
+        for (index, half_edge) in &self.half_edges {
+            println!(
+                "Half edge {:?} from {:?} to {:?}, has twin {:?}",
+                index, half_edge.origin, half_edge.destination, half_edge.twin
+            );
+        }
     }
 }

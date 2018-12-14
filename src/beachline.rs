@@ -1,16 +1,19 @@
 use generational_arena::{Arena, Index};
 
+use crate::event::Event;
+use crate::vector2::Vector2;
+use crate::voronoi::Voronoi;
+use std::cell::RefCell;
 use std::f64;
-use vector2::Vector2;
+use std::rc::Weak;
 
-use voronoi::Site;
-
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 enum Color {
     RED,
     BLACK,
 }
 
+#[derive(Debug)]
 pub struct Arc {
     parent: Option<Index>,
     left: Option<Index>,
@@ -22,6 +25,8 @@ pub struct Arc {
 
     prev: Option<Index>,
     next: Option<Index>,
+
+    event: Weak<RefCell<Event>>,
 
     color: Color,
 }
@@ -39,6 +44,8 @@ impl Arc {
             left_half_edge: None,
             right_half_edge: None,
 
+            event: Weak::new(),
+
             // Optimisation
             prev: None,
             next: None,
@@ -49,7 +56,7 @@ impl Arc {
 
 pub struct Beachline {
     arcs: Arena<Arc>,
-    root: Option<Index>,
+    pub root: Option<Index>,
 }
 
 impl Beachline {
@@ -68,46 +75,64 @@ impl Beachline {
         let root = self.arcs.insert(Arc::new(site));
         self.set_color(root, Color::BLACK);
         self.root = Some(root);
-        info!("Creating root arc at {:?}", root);
     }
 
-    pub fn locate_arc_above(&self, point: Vector2, y: f64, sites: &Arena<Site>) -> Index {
+    pub fn locate_arc_above(&self, point: Vector2, y: f64, voronoi: &Voronoi) -> Index {
         info!("Searching for arc above point at {:?}", point);
-        let mut node_index = self.root.unwrap();
+        let mut current_arc = self.root.unwrap();
         let mut found = false;
         while !found {
-            let node = self.arcs.get(node_index).unwrap();
-            let breakpoint_left = match node.prev {
-                Some(node_index) => {
-                    let prev_node = self.arcs.get(node_index).unwrap();
-                    let prev_site = sites.get(prev_node.site.unwrap()).unwrap();
-                    compute_breakpoint(prev_site.point, point, y)
+            // Check for the special case where the site for the arc is at the current y
+            let current_arc_focus = voronoi.get_site_point(self.get_site(current_arc).unwrap());
+            info!(
+                "Current arc is at {:?} with focus at {:?}",
+                current_arc, current_arc_focus
+            );
+            if current_arc_focus.y == y {
+                if point.x < current_arc_focus.x {
+                    current_arc = self.get_left(current_arc).unwrap();
+                } else if point.x > current_arc_focus.x {
+                    current_arc = self.get_right(current_arc).unwrap();
+                } else {
+                    panic!("Two sites located at the same point");
                 }
-                None => f64::NEG_INFINITY,
-            };
-            let breakpoint_right = match node.next {
-                Some(node_index) => {
-                    let next_node = self.arcs.get(node_index).unwrap();
-                    let next_site = sites.get(next_node.site.unwrap()).unwrap();
-                    compute_breakpoint(next_site.point, point, y)
-                }
-                None => f64::INFINITY,
-            };
-            if point.x < breakpoint_left {
-                node_index = node.left.unwrap();
-            } else if point.x > breakpoint_right {
-                node_index = node.right.unwrap();
             } else {
-                found = true;
+                let prev = self.get_prev(current_arc);
+                let next = self.get_next(current_arc);
+
+                let breakpoint_left = if prev.is_some() {
+                    let prev_site = self.get_site(prev.unwrap()).unwrap();
+                    compute_breakpoint(voronoi.get_site_point(prev_site), point, y)
+                } else {
+                    f64::NEG_INFINITY
+                };
+                let breakpoint_right = if next.is_some() {
+                    let next_site = self.get_site(next.unwrap()).unwrap();
+                    compute_breakpoint(point, voronoi.get_site_point(next_site), y)
+                } else {
+                    f64::INFINITY
+                };
+                info!(
+                    "Breakpoints left: {}, right: {}.",
+                    breakpoint_left, breakpoint_right
+                );
+
+                if point.x < breakpoint_left {
+                    current_arc = self.get_left(current_arc).unwrap();
+                } else if point.x > breakpoint_right {
+                    current_arc = self.get_right(current_arc).unwrap();
+                } else {
+                    found = true;
+                }
             }
         }
-        info!("Found arc above with index {:?}", node_index);
-        node_index
+        info!("Found arc above with index {:?}", current_arc);
+        current_arc
     }
 
     pub fn break_arc(&mut self, arc: Index, new_site: Index) -> Index {
         info!(
-            "Breaking arc with index {:?} to insert arc for site {:?}",
+            "Breaking arc at {:?} to insert arc for site at {:?}",
             arc, new_site
         );
         let arc_site = self.get_site(arc).unwrap();
@@ -138,16 +163,7 @@ impl Beachline {
             "Replacing beachline arc at {:?} with arc at {:?}",
             old_arc, new_arc
         );
-        let parent = self.get_parent(old_arc);
-        if parent.is_none() {
-            self.root = Some(new_arc)
-        } else if self.get_left(parent.unwrap()) == Some(old_arc) {
-            self.set_left(parent.unwrap(), Some(new_arc))
-        } else {
-            self.set_right(parent.unwrap(), Some(new_arc))
-        }
-
-        self.set_parent(new_arc, parent);
+        self.transplant(old_arc, Some(new_arc));
 
         let left = self.get_left(old_arc);
         self.set_left(new_arc, left);
@@ -160,12 +176,12 @@ impl Beachline {
             self.set_parent(right.unwrap(), Some(new_arc));
         }
         let prev = self.get_prev(old_arc);
-        self.set_prev(new_arc, left);
+        self.set_prev(new_arc, prev);
         if prev.is_some() {
             self.set_next(prev.unwrap(), Some(new_arc));
         }
         let next = self.get_next(old_arc);
-        self.set_next(new_arc, left);
+        self.set_next(new_arc, next);
         if next.is_some() {
             self.set_prev(next.unwrap(), Some(new_arc));
         }
@@ -175,43 +191,43 @@ impl Beachline {
     }
 
     fn insert_before(&mut self, existing_arc: Index, new_arc: Index) {
+        info!(
+            "Inserting arc at {:?} before the arc at {:?}",
+            new_arc, existing_arc
+        );
         let existing_arc_prev = self.get_prev(existing_arc);
-        match self.get_left(existing_arc) {
-            Some(_) => {
-                let prev = self.get_prev(existing_arc).unwrap();
-                self.set_right(prev, Some(new_arc));
-                self.set_parent(new_arc, existing_arc_prev);
-            }
-            None => {
-                self.set_left(existing_arc, Some(new_arc));
-                self.set_parent(new_arc, Some(existing_arc));
-            }
-        };
+        if self.get_left(existing_arc).is_none() {
+            self.set_left(existing_arc, Some(new_arc));
+            self.set_parent(new_arc, Some(existing_arc));
+        } else {
+            self.set_right(existing_arc_prev.unwrap(), Some(new_arc));
+            self.set_parent(new_arc, existing_arc_prev);
+        }
         self.set_prev(new_arc, existing_arc_prev);
-        match self.get_prev(new_arc) {
-            Some(prev) => self.set_next(prev, Some(new_arc)),
-            None => {}
+        if existing_arc_prev.is_some() {
+            self.set_next(existing_arc_prev.unwrap(), Some(new_arc));
         }
         self.set_next(new_arc, Some(existing_arc));
         self.set_prev(existing_arc, Some(new_arc));
 
         // Balance the tree
-        // self.insertFixup(arc_to_insert_index)
+        // self.insertFixup(new_arc)
     }
 
     fn insert_after(&mut self, existing_arc: Index, new_arc: Index) {
+        info!(
+            "Inserting arc at {:?} after the arc at {:?}",
+            new_arc, existing_arc
+        );
         let existing_arc_next = self.get_next(existing_arc);
-        match self.get_right(existing_arc) {
-            Some(_) => {
-                let next = self.get_next(existing_arc).unwrap();
-                self.set_left(next, Some(new_arc));
-                self.set_parent(new_arc, existing_arc_next);
-            }
-            None => {
-                self.set_right(existing_arc, Some(new_arc));
-                self.set_parent(new_arc, Some(existing_arc));
-            }
-        };
+        if self.get_right(existing_arc).is_none() {
+            self.set_right(existing_arc, Some(new_arc));
+            self.set_parent(new_arc, Some(existing_arc));
+        } else {
+            self.set_left(existing_arc_next.unwrap(), Some(new_arc));
+            self.set_parent(new_arc, existing_arc_next);
+        }
+
         self.set_next(new_arc, existing_arc_next);
         match self.get_next(new_arc) {
             Some(next) => self.set_prev(next, Some(new_arc)),
@@ -224,12 +240,81 @@ impl Beachline {
         // self.insertFixup(arc_to_insert_index)
     }
 
+    pub fn remove_arc(&mut self, arc: Index) {
+        info!("Removing arc at {:?}", arc);
+        let left = self.get_left(arc);
+        let right = self.get_right(arc);
+        let original_arc_color = self.get_color(arc);
+        if left.is_none() {
+            // There is no arc to the left, replace the arc we are removing with that to the right
+            self.transplant(arc, right);
+        } else if right.is_none() {
+            // There is no arc to the right, replace the arc we are removing with that to the left
+            self.transplant(arc, left);
+        } else {
+            // In the middle of the tree, we will replace the arc we are removing with the left
+            // most node of the right subtree
+            let minimum = self.get_leftmost_arc(right.unwrap());
+            let min_parent = self.get_parent(minimum);
+            let min_right = self.get_right(minimum);
+            if min_parent != Some(arc) {
+                self.transplant(minimum, min_right);
+                self.set_right(minimum, right);
+            }
+            self.transplant(arc, Some(minimum));
+            self.set_left(minimum, left);
+            self.set_parent(left.unwrap(), Some(minimum));
+            self.set_color(minimum, original_arc_color);
+        }
+        // TODO check if tree need rebalancing
+        let prev = self.get_prev(arc);
+        let next = self.get_next(arc);
+
+        if prev.is_some() {
+            self.set_next(prev.unwrap(), next);
+        }
+        if next.is_some() {
+            self.set_prev(next.unwrap(), prev);
+        }
+    }
+
+    /// Gets the leftmost arc of the subtree with root at the given arc
+    fn get_leftmost_arc(&self, arc: Index) -> Index {
+        let mut current_arc = arc;
+        loop {
+            let next_arc = self.get_left(current_arc);
+            if next_arc.is_none() {
+                break;
+            } else {
+                current_arc = next_arc.unwrap();
+            }
+        }
+        current_arc
+    }
+
+    /// Swaps out one arc in the tree for another
+    /// Updates the parent arc
+    fn transplant(&mut self, old_arc: Index, new_arc: Option<Index>) {
+        let parent = self.get_parent(old_arc);
+        if parent.is_none() {
+            self.root = new_arc;
+        } else if self.get_left(parent.unwrap()) == Some(old_arc) {
+            self.set_left(parent.unwrap(), new_arc);
+        } else {
+            self.set_right(parent.unwrap(), new_arc);
+        }
+
+        if new_arc.is_some() {
+            self.set_parent(new_arc.unwrap(), parent);
+        }
+    }
+
     fn set_right(&mut self, arc: Index, right: Option<Index>) {
         let arc = self.arcs.get_mut(arc).unwrap();
         arc.right = right;
     }
 
-    fn get_right(&self, arc: Index) -> Option<Index> {
+    pub fn get_right(&self, arc: Index) -> Option<Index> {
         let arc = self.arcs.get(arc).unwrap();
         arc.right
     }
@@ -239,7 +324,7 @@ impl Beachline {
         arc.left = left;
     }
 
-    fn get_left(&self, arc: Index) -> Option<Index> {
+    pub fn get_left(&self, arc: Index) -> Option<Index> {
         let arc = self.arcs.get(arc).unwrap();
         arc.left
     }
@@ -307,6 +392,41 @@ impl Beachline {
     fn get_color(&self, arc: Index) -> Color {
         let arc = self.arcs.get(arc).unwrap();
         arc.color
+    }
+
+    fn get_left_arc(&self) -> Option<Index> {
+        let mut arc = self.root;
+        if arc.is_some() {
+            while self.get_prev(arc.unwrap()).is_some() {
+                arc = self.get_prev(arc.unwrap());
+            }
+        }
+        arc
+    }
+
+    pub fn set_arc_event(&mut self, arc: Index, event: Weak<RefCell<Event>>) {
+        let arc = self.arcs.get_mut(arc).unwrap();
+        arc.event = event;
+    }
+
+    pub fn get_arc_event(&self, arc: Index) -> Weak<RefCell<Event>> {
+        let arc = self.arcs.get(arc).unwrap();
+        arc.event.clone()
+    }
+
+    pub fn print_arcs(&self) {
+        for (index, arc) in &self.arcs {
+            println!("{:?} : {:?}", index, arc);
+        }
+    }
+
+    pub fn print_beachline(&self) {
+        let mut arc = self.get_left_arc();
+        while arc.is_some() {
+            print!("{:?}--", self.get_site(arc.unwrap()));
+            arc = self.get_next(arc.unwrap());
+        }
+        println!("");
     }
 }
 
