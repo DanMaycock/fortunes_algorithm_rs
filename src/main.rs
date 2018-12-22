@@ -1,37 +1,16 @@
-use log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
 use piston_window::*;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use voronoi::vector2::Vector2;
 use voronoi::voronoi::Voronoi;
-
-struct SimpleLogger;
 
 const WINDOW_WIDTH: f64 = 640.0;
 const WINDOW_HEIGHT: f64 = 640.0;
 
 const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
 const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
-const BLUE: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
+const BLUE: [f32; 4] = [0.3, 0.3, 1.0, 1.0];
 const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
-
-impl log::Log for SimpleLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Info
-    }
-
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            println!("{} - {}", record.level(), record.args());
-        }
-    }
-
-    fn flush(&self) {}
-}
-
-static LOGGER: SimpleLogger = SimpleLogger;
-
-pub fn init() -> Result<(), SetLoggerError> {
-    log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Info))
-}
 
 fn diagram_to_canvas(point: Vector2) -> Vector2 {
     Vector2::new(point.x * WINDOW_WIDTH, point.y * WINDOW_HEIGHT)
@@ -50,7 +29,7 @@ fn draw_edge<G: Graphics>(from: Vector2, to: Vector2, color: [f32; 4], c: Contex
 }
 
 fn draw_voronoi_diagram<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
-    for (site, _) in &diagram.sites {
+    for (site, _) in diagram.sites.iter() {
         let face = diagram.get_site_face(site).unwrap();
         let mut start_half_edge = diagram.get_face_outer_component(face);
         if start_half_edge.is_some() {
@@ -95,7 +74,7 @@ fn draw_voronoi_diagram<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
 }
 
 fn draw_delauney_diagram<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
-    for (site, _) in &diagram.sites {
+    for (site, _) in diagram.sites.iter() {
         let face = diagram.get_site_face(site).unwrap();
         let mut start_half_edge = diagram.get_face_outer_component(face);
         if start_half_edge.is_some() {
@@ -129,21 +108,40 @@ fn draw_delauney_diagram<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) 
             }
         }
     }
+}
 
+fn draw_delauney_vertices<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
     for vertex in diagram.get_delauney_vertices() {
         draw_point(vertex, BLUE, c, g);
     }
 }
 
 fn main() {
-    init().expect("Failed to initialise logger");
+    // let points: Vec<Vector2> = vec![
+    //     Vector2::new(0.4, 0.5),
+    //     Vector2::new(0.6, 0.5),
+    //     Vector2::new(0.5, 0.2),
+    //     Vector2::new(0.5, 0.8),
+    // ];
 
-    let points: Vec<Vector2> = vec![
-        Vector2::new(0.4, 0.5),
-        Vector2::new(0.6, 0.5),
-        Vector2::new(0.5, 0.2),
-        Vector2::new(0.5, 0.8),
-    ];
+    // let points = vec![
+    //     Vector2::new(0.8545189165195228, 0.03054690571899843),
+    //     Vector2::new(0.7359666054926415, 0.09757792265981924),
+    //     Vector2::new(0.20548556483395997, 0.11141869537040194),
+    //     Vector2::new(0.01675129420586885, 0.12051964205677834),
+    //     Vector2::new(0.2852457465283281, 0.149179106485832),
+    //     Vector2::new(0.5700156839735175, 0.3305212298891148),
+    //     Vector2::new(0.6327951274099004, 0.8253313276763707),
+    //     Vector2::new(0.9272513099727112, 0.8712778711138446),
+    //     Vector2::new(0.5454215894655622, 0.9233746637708448),
+    //     Vector2::new(0.1870174524640723, 0.9633344884826402),
+    // ];
+    let mut points: Vec<Vector2> = vec![];
+    let seed: &[u8; 32] = &[0; 32];
+    let mut rng: StdRng = StdRng::from_seed(*seed);
+    for _ in 0..5000 {
+        points.push(Vector2::new(rng.gen(), rng.gen()));
+    }
 
     let diagram = voronoi::generate_diagram(&points);
 
@@ -157,10 +155,7 @@ fn main() {
         window.draw_2d(&e, |c, g| {
             clear([0.0, 0.0, 0.0, 1.0], g);
             draw_voronoi_diagram(&diagram, c, g);
-            draw_delauney_diagram(&diagram, c, g);
+            draw_delauney_vertices(&diagram, c, g);
         });
     }
-
-    diagram.print_vertices();
-    diagram.print_edges();
 }

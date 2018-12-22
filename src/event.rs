@@ -1,11 +1,12 @@
 use crate::vector2::Vector2;
+use crate::voronoi::SiteIndex;
 use generational_arena::Index;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 #[derive(Debug)]
 pub enum EventType {
-    SiteEvent { site: Index },
+    SiteEvent { site: SiteIndex },
     CircleEvent { point: Vector2, arc: Index },
 }
 
@@ -17,30 +18,37 @@ pub struct Event {
 }
 
 pub struct EventQueue {
-    queue: Vec<Rc<RefCell<Event>>>,
+    queue: Box<Vec<Rc<RefCell<Event>>>>,
 }
 
 impl EventQueue {
     pub fn new() -> Self {
-        EventQueue { queue: vec![] }
+        EventQueue {
+            queue: Box::new(vec![]),
+        }
     }
 
-    pub fn add_site_event(&mut self, y: f64, site: Index) -> Weak<RefCell<Event>> {
-        error!("Adding site event at {}", y);
+    pub fn add_site_event(&mut self, y: f64, site: SiteIndex) -> Weak<RefCell<Event>> {
+        println!("Adding site event at {} for site {}", y, site);
         let index = self.queue.len();
+        println!("About to create event");
         let event = Rc::new(RefCell::new(Event {
             y,
             index,
             event_type: EventType::SiteEvent { site },
         }));
+        println!("Created Event");
         let weak_event = Rc::downgrade(&event);
+        println!("About to add event to queue");
         self.queue.push(event);
+        println!("Added event to queue");
         self.sift_up(index);
+        println!("Reordered Queue for new entry");
         weak_event
     }
 
     pub fn add_circle_event(&mut self, y: f64, point: Vector2, arc: Index) -> Weak<RefCell<Event>> {
-        error!("Adding circle event at {} with point {:?}", y, point);
+        println!("Adding circle event at {} with point {:?}", y, point);
         let index = self.queue.len();
         let event = Rc::new(RefCell::new(Event {
             y,
@@ -82,11 +90,11 @@ impl EventQueue {
     }
 
     fn sift_down(&mut self, index: usize) {
-        if index != self.queue.len() - 1
+        if index < self.queue.len() - 1
             && self.queue[index].borrow().y < self.queue[index + 1].borrow().y
         {
             self.swap(index, index + 1);
-            self.sift_up(index + 1);
+            self.sift_down(index + 1);
         }
     }
 
@@ -100,25 +108,18 @@ impl EventQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use generational_arena::Arena;
-
     #[test]
     fn test_add_events() {
-        let mut sites = Arena::new();
-        let idx1 = sites.insert(1);
-        let idx2 = sites.insert(2);
-        let idx3 = sites.insert(2);
-
         let mut events = EventQueue::new();
 
         // Insert an initial event
-        events.add_site_event(1.0, idx1);
+        events.add_site_event(1.0, SiteIndex::new(1));
 
         // Insert a second event after the first
-        events.add_site_event(2.0, idx2);
+        events.add_site_event(2.0, SiteIndex::new(1));
 
         // Ad a third before the first
-        events.add_site_event(0.5, idx3);
+        events.add_site_event(0.5, SiteIndex::new(1));
 
         // Now pop the events off the queue and check they are correct
         assert_eq!(events.pop().unwrap().y, 0.5);
@@ -130,21 +131,16 @@ mod tests {
 
     #[test]
     fn test_remove_events() {
-        let mut sites = Arena::new();
-        let idx1 = sites.insert(1);
-        let idx2 = sites.insert(2);
-        let idx3 = sites.insert(2);
-
         let mut events = EventQueue::new();
 
         // Insert an initial event
-        events.add_site_event(1.0, idx1);
+        events.add_site_event(1.0, SiteIndex::new(1));
 
         // Insert a second event after the first
-        events.add_site_event(2.0, idx2);
+        events.add_site_event(2.0, SiteIndex::new(1));
 
         // Ad a third before the first
-        events.add_site_event(0.5, idx3);
+        events.add_site_event(0.5, SiteIndex::new(1));
 
         // Remove the middle event
         events.remove_event(1);
@@ -154,5 +150,35 @@ mod tests {
         assert_eq!(events.pop().unwrap().y, 2.0);
 
         assert!(events.pop().is_none());
+    }
+
+    #[test]
+    fn test_real_values() {
+        let mut events = EventQueue::new();
+        events.add_site_event(0.11141869537040194, SiteIndex::new(1));
+        events.add_site_event(0.12051964205677834, SiteIndex::new(1));
+        events.add_site_event(0.149179106485832, SiteIndex::new(2));
+        events.add_site_event(0.3305212298891148, SiteIndex::new(3));
+        events.add_site_event(0.8253313276763707, SiteIndex::new(4));
+        events.add_site_event(0.8712778711138446, SiteIndex::new(5));
+        events.add_site_event(0.9233746637708448, SiteIndex::new(6));
+
+        assert_eq!(events.pop().unwrap().y, 0.11141869537040194);
+        assert_eq!(events.pop().unwrap().y, 0.12051964205677834);
+        assert_eq!(events.pop().unwrap().y, 0.149179106485832);
+
+        events.add_site_event(0.6730149742604588, SiteIndex::new(7));
+
+        assert_eq!(events.pop().unwrap().y, 0.3305212298891148);
+
+        events.add_site_event(3.380219501494663, SiteIndex::new(8));
+
+        assert_eq!(events.pop().unwrap().y, 0.6730149742604588);
+
+        events.add_site_event(1.4484342273501185, SiteIndex::new(8));
+
+        assert_eq!(events.pop().unwrap().y, 0.8253313276763707);
+        assert_eq!(events.pop().unwrap().y, 0.8712778711138446);
+        assert_eq!(events.pop().unwrap().y, 0.9233746637708448);
     }
 }

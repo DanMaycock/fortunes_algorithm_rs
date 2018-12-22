@@ -1,9 +1,16 @@
 use std::ops::{Add, Mul, Sub};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Vector2 {
     pub x: f64,
     pub y: f64,
+}
+
+impl fmt::Display for Vector2 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
 }
 
 impl Sub for Vector2 {
