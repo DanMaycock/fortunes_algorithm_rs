@@ -4,13 +4,16 @@ use rand::{Rng, SeedableRng};
 use voronoi::vector2::Vector2;
 use voronoi::voronoi::Voronoi;
 
-const WINDOW_WIDTH: f64 = 640.0;
-const WINDOW_HEIGHT: f64 = 640.0;
+const WINDOW_WIDTH: f64 = 1080.0;
+const WINDOW_HEIGHT: f64 = 1080.0;
 
 const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
 const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
 const BLUE: [f32; 4] = [0.3, 0.3, 1.0, 1.0];
 const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
+
+const POINT_SIZE: f64 = 1.0;
+const LINE_WIDTH: f64 = 1.0;
 
 fn diagram_to_canvas(point: Vector2) -> Vector2 {
     Vector2::new(point.x * WINDOW_WIDTH, point.y * WINDOW_HEIGHT)
@@ -139,7 +142,7 @@ fn main() {
     let mut points: Vec<Vector2> = vec![];
     let seed: &[u8; 32] = &[0; 32];
     let mut rng: StdRng = StdRng::from_seed(*seed);
-    for _ in 0..5000 {
+    for _ in 0..100000 {
         points.push(Vector2::new(rng.gen(), rng.gen()));
     }
 

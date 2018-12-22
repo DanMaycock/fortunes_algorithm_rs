@@ -29,26 +29,19 @@ impl EventQueue {
     }
 
     pub fn add_site_event(&mut self, y: f64, site: SiteIndex) -> Weak<RefCell<Event>> {
-        println!("Adding site event at {} for site {}", y, site);
         let index = self.queue.len();
-        println!("About to create event");
         let event = Rc::new(RefCell::new(Event {
             y,
             index,
             event_type: EventType::SiteEvent { site },
         }));
-        println!("Created Event");
         let weak_event = Rc::downgrade(&event);
-        println!("About to add event to queue");
         self.queue.push(event);
-        println!("Added event to queue");
         self.sift_up(index);
-        println!("Reordered Queue for new entry");
         weak_event
     }
 
     pub fn add_circle_event(&mut self, y: f64, point: Vector2, arc: Index) -> Weak<RefCell<Event>> {
-        println!("Adding circle event at {} with point {:?}", y, point);
         let index = self.queue.len();
         let event = Rc::new(RefCell::new(Event {
             y,
@@ -82,19 +75,19 @@ impl EventQueue {
         }
     }
 
-    fn sift_up(&mut self, index: usize) {
-        if index != 0 && self.queue[index].borrow().y > self.queue[index - 1].borrow().y {
+    fn sift_up(&mut self, mut index: usize) {
+        while index != 0 && self.queue[index].borrow().y > self.queue[index - 1].borrow().y {
             self.swap(index, index - 1);
-            self.sift_up(index - 1);
+            index = index - 1;
         }
     }
 
-    fn sift_down(&mut self, index: usize) {
-        if index < self.queue.len() - 1
+    fn sift_down(&mut self, mut index: usize) {
+        while index < self.queue.len() - 1
             && self.queue[index].borrow().y < self.queue[index + 1].borrow().y
         {
             self.swap(index, index + 1);
-            self.sift_down(index + 1);
+            index = index + 1;
         }
     }
 

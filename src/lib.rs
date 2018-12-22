@@ -24,7 +24,6 @@ pub fn generate_diagram(points: &[Vector2]) -> Voronoi {
     let mut beachline = Beachline::new();
 
     for (index, site) in voronoi.sites.iter() {
-        println!("Adding to event queue");
         event_queue.add_site_event(site.y(), index);
     }
 
