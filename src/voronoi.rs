@@ -108,10 +108,6 @@ impl Voronoi {
         left_site: SiteIndex,
         right_site: SiteIndex,
     ) -> (HalfEdgeIndex, HalfEdgeIndex) {
-        info!(
-            "Adding edge between sites at {} and {}",
-            left_site, right_site
-        );
         let half_edge_1 = self.create_half_edge(left_site);
         let half_edge_2 = self.create_half_edge(right_site);
 

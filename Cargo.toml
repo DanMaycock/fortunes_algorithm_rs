@@ -1,12 +1,13 @@
 [package]
-name = "voronoi"
+name = "fortunes_algorithm"
 version = "0.1.0"
 authors = ["Daniel Maycock <DanMaycock13@googlemail.com>"]
 edition = "2018"
 
 [dependencies]
-generational-arena = "0.1.0"
-rand = "0.6.0"
+binary_search_tree = {path = "C:/Users/Dan/Documents/Rust/binary_search_tree"}
+generational-arena = "0.2.0"
+rand = "0.6.1"
 log = "0.4.6"
 piston_window = "0.85.0"
 

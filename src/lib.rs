@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate log;
-
 mod beachline;
 mod boundingbox;
 mod event;
@@ -17,7 +14,7 @@ use generational_arena::Index;
 use std::f64;
 
 pub fn generate_diagram(points: &[Vector2]) -> Voronoi {
-    let mut event_queue = Box::new(EventQueue::new());
+    let mut event_queue = EventQueue::new();
 
     let mut voronoi = Voronoi::new(points);
 
@@ -70,34 +67,23 @@ fn handle_site_event(
     current_y: f64,
     event_queue: &mut EventQueue,
 ) {
-    let point = voronoi.get_site_point(site);
-    info!(
-        "handling site event for site: {} with point at {:?}",
-        site, point
-    );
-
     // 1 Check if beachline is empty
-    info!("1. Check if beachline is empty");
-    if !beachline.has_root() {
-        info!("Empty beachline creating root");
+    if !beachline.tree.has_root() {
         beachline.create_root(site);
         return;
     }
 
     // 2 Look for the arc above the site
-    info!("2. Looking for arc above the site");
     let site_point = voronoi.get_site_point(site);
-    let arc_to_break = beachline.locate_arc_above(site_point, current_y, voronoi);
-    delete_event(arc_to_break, beachline, event_queue);
+    let middle_arc = beachline.locate_arc_above(site_point, current_y, voronoi);
+    delete_event(middle_arc, beachline, event_queue);
 
     // 3 Replace this arc by new arcs
-    info!("3. Replacing arc with new arcs");
-    let middle_arc = beachline.break_arc(arc_to_break, site);
-    let left_arc = beachline.get_prev(middle_arc).unwrap();
-    let right_arc = beachline.get_next(middle_arc).unwrap();
+    beachline.break_arc(middle_arc, site);
+    let left_arc = beachline.tree.get_prev(middle_arc).unwrap();
+    let right_arc = beachline.tree.get_next(middle_arc).unwrap();
 
     // 4 Add a new edge to the diagram
-    info!("4. Add a new edge to the voronoi diagram");
     let (half_edge_1, half_edge_2) = voronoi.add_edge(
         beachline.get_site(left_arc).unwrap(),
         beachline.get_site(middle_arc).unwrap(),
@@ -109,8 +95,7 @@ fn handle_site_event(
     beachline.set_left_half_edge(right_arc, Some(half_edge_1));
 
     // 5 Check circle events
-    info!("5. Check for any new circle events");
-    let prev_arc = beachline.get_prev(left_arc);
+    let prev_arc = beachline.tree.get_prev(left_arc);
     if prev_arc.is_some() {
         add_event(
             prev_arc.unwrap(),
@@ -122,7 +107,7 @@ fn handle_site_event(
             event_queue,
         );
     }
-    let next_arc = beachline.get_next(right_arc);
+    let next_arc = beachline.tree.get_next(right_arc);
     if next_arc.is_some() {
         add_event(
             middle_arc,
@@ -156,27 +141,12 @@ fn add_event(
     current_y: f64,
     event_queue: &mut EventQueue,
 ) {
-    info!(
-        "Checking if an event need to be added for the arcs at {:?}, {:?} and {:?}",
-        left_arc, middle_arc, right_arc
-    );
     let left_point = voronoi.get_site_point(beachline.get_site(left_arc).unwrap());
     let middle_point = voronoi.get_site_point(beachline.get_site(middle_arc).unwrap());
     let right_point = voronoi.get_site_point(beachline.get_site(right_arc).unwrap());
     let center = compute_circumcircle_center(left_point, middle_point, right_point);
     let radius = center.get_distance(middle_point);
     let event_y = center.y + radius;
-    trace!(
-        "Potential circle event center at {:?} with event Y at {}",
-        center,
-        event_y
-    );
-    trace!(
-        "Left point: {:?}, Middle point: {:?}, Right Point: {:?}",
-        left_point,
-        middle_point,
-        right_point
-    );
 
     if event_y > current_y - f64::EPSILON {
         let left_breakpoint_moving_right = is_moving_right(left_point, middle_point);
@@ -185,33 +155,15 @@ fn add_event(
         let right_initial_x =
             get_initial_x(middle_point, right_point, right_breakpoint_moving_right);
 
-        trace!(
-            "Left: Intial x = {}, moving right: {}",
-            left_initial_x,
-            left_breakpoint_moving_right
-        );
-        trace!(
-            "Right: Intial x = {}, moving right: {}",
-            right_initial_x,
-            right_breakpoint_moving_right
-        );
         let is_valid = ((left_breakpoint_moving_right && left_initial_x <= center.x)
             || (!left_breakpoint_moving_right && left_initial_x >= center.x))
             && (right_breakpoint_moving_right && right_initial_x <= center.x
                 || !right_breakpoint_moving_right && right_initial_x >= center.x);
 
         if is_valid {
-            info!(
-                "Adding cicle event at {}, with center at {:?}",
-                event_y, center
-            );
             let event = event_queue.add_circle_event(event_y, center, middle_arc);
             beachline.set_arc_event(middle_arc, event);
-        } else {
-            info!("Event is not valid");
         }
-    } else {
-        info!("Event Y is behind the beachline y value so ignoring");
     }
 }
 
@@ -223,13 +175,12 @@ fn handle_circle_event(
     y: f64,
     event_queue: &mut EventQueue,
 ) {
-    info!("handling circle event at {:?}", point);
     // 1 Add vertex
     let vertex = voronoi.create_vertex(point);
 
     // 2 Delete all events with this arc
-    let left_arc = beachline.get_prev(arc).unwrap();
-    let right_arc = beachline.get_next(arc).unwrap();
+    let left_arc = beachline.tree.get_prev(arc).unwrap();
+    let right_arc = beachline.tree.get_next(arc).unwrap();
 
     delete_event(left_arc, beachline, event_queue);
     delete_event(right_arc, beachline, event_queue);
@@ -238,7 +189,7 @@ fn handle_circle_event(
     remove_arc(arc, vertex, voronoi, beachline);
 
     // 4. Add new circle events
-    let left_arc_prev = beachline.get_prev(left_arc);
+    let left_arc_prev = beachline.tree.get_prev(left_arc);
     if left_arc_prev.is_some() {
         add_event(
             left_arc_prev.unwrap(),
@@ -250,7 +201,7 @@ fn handle_circle_event(
             event_queue,
         );
     }
-    let right_arc_next = beachline.get_next(right_arc);
+    let right_arc_next = beachline.tree.get_next(right_arc);
     if right_arc_next.is_some() {
         add_event(
             left_arc,
@@ -276,8 +227,8 @@ fn delete_event(arc: Index, beachline: &Beachline, event_queue: &mut EventQueue)
 }
 
 fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Voronoi, beachline: &mut Beachline) {
-    let prev = beachline.get_prev(arc).unwrap();
-    let next = beachline.get_next(arc).unwrap();
+    let prev = beachline.tree.get_prev(arc).unwrap();
+    let next = beachline.tree.get_next(arc).unwrap();
     let left_half_edge = beachline.get_left_half_edge(arc).unwrap();
     let right_half_edge = beachline.get_right_half_edge(arc).unwrap();
     let prev_right_half_edge = beachline.get_right_half_edge(prev).unwrap();
@@ -313,7 +264,7 @@ fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Voronoi, beachline:
     voronoi.set_half_edge_prev(half_edge_2, next_half_edge);
 
     // Remove the arc from the beachline
-    beachline.remove_arc(arc);
+    beachline.tree.delete_node(arc);
 }
 
 fn bound_diagram(voronoi: &mut Voronoi, beachline: &Beachline) {

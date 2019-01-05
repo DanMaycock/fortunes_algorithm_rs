@@ -3,7 +3,7 @@ use core::slice;
 use std::fmt;
 use std::marker::PhantomData;
 
-pub struct TypedVec<T>(Box<Vec<T>>);
+pub struct TypedVec<T>(Vec<T>);
 
 pub struct TypedIndex<T> {
     index: usize,
@@ -47,7 +47,7 @@ impl<T> fmt::Debug for TypedIndex<T> {
 
 impl<T> TypedVec<T> {
     pub fn new() -> Self {
-        TypedVec(Box::new(Vec::new()))
+        TypedVec(Vec::new())
     }
 
     pub fn insert(&mut self, item: T) -> TypedIndex<T> {

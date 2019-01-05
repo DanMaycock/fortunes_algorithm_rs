@@ -18,14 +18,12 @@ pub struct Event {
 }
 
 pub struct EventQueue {
-    queue: Box<Vec<Rc<RefCell<Event>>>>,
+    queue: Vec<Rc<RefCell<Event>>>,
 }
 
 impl EventQueue {
     pub fn new() -> Self {
-        EventQueue {
-            queue: Box::new(vec![]),
-        }
+        EventQueue { queue: vec![] }
     }
 
     pub fn add_site_event(&mut self, y: f64, site: SiteIndex) -> Weak<RefCell<Event>> {
