@@ -108,8 +108,8 @@ impl Voronoi {
         left_site: SiteIndex,
         right_site: SiteIndex,
     ) -> (HalfEdgeIndex, HalfEdgeIndex) {
-        let half_edge_1 = self.create_half_edge(left_site);
-        let half_edge_2 = self.create_half_edge(right_site);
+        let half_edge_1 = self.create_half_edge(self.get_site_face(left_site).unwrap());
+        let half_edge_2 = self.create_half_edge(self.get_site_face(right_site).unwrap());
 
         self.set_half_edge_twin(half_edge_1, Some(half_edge_2));
         self.set_half_edge_twin(half_edge_2, Some(half_edge_1));
@@ -117,8 +117,7 @@ impl Voronoi {
         (half_edge_1, half_edge_2)
     }
 
-    pub fn create_half_edge(&mut self, site: SiteIndex) -> HalfEdgeIndex {
-        let face = self.get_site_face(site).unwrap();
+    pub fn create_half_edge(&mut self, face: FaceIndex) -> HalfEdgeIndex {
         let new_half_edge = self.half_edges.insert(HalfEdge::new(face));
 
         if self.get_face_outer_component(face).is_none() {

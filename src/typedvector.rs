@@ -1,6 +1,7 @@
 use core::iter::FromIterator;
 use core::slice;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 pub struct TypedVec<T>(Vec<T>);
@@ -9,6 +10,14 @@ pub struct TypedIndex<T> {
     index: usize,
     phantom: PhantomData<T>,
 }
+
+impl<T> Hash for TypedIndex<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.index.hash(state);
+    }
+}
+
+impl<T> Eq for TypedIndex<T> {}
 
 impl<T> Copy for TypedIndex<T> {}
 
