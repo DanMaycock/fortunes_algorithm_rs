@@ -77,7 +77,7 @@ impl Face {
 
 pub struct Voronoi {
     pub sites: TypedVec<Site>,
-    faces: TypedVec<Face>,
+    pub faces: TypedVec<Face>,
     vertices: TypedVec<Vertex>,
     half_edges: TypedVec<HalfEdge>,
 }
@@ -98,6 +98,10 @@ impl Voronoi {
         }
 
         voronoi
+    }
+
+    pub fn get_faces(&self) -> Vec<FaceIndex> {
+        self.faces.iter().map(|(index, _)| index).collect()
     }
 
     // Constructs a twin pair of halfedges that represent the edge
@@ -127,6 +131,10 @@ impl Voronoi {
         new_half_edge
     }
 
+    pub fn remove_half_edge(&mut self, halfedge: HalfEdgeIndex) {
+        self.half_edges.remove(halfedge);
+    }
+
     pub fn create_vertex(&mut self, point: Vector2) -> VertexIndex {
         self.vertices.insert(Vertex::new(point))
     }
@@ -151,7 +159,7 @@ impl Voronoi {
         face.outer_component
     }
 
-    fn set_face_outer_component(&mut self, face: FaceIndex, half_edge: Option<HalfEdgeIndex>) {
+    pub fn set_face_outer_component(&mut self, face: FaceIndex, half_edge: Option<HalfEdgeIndex>) {
         let face = self.faces.get_mut(face).unwrap();
         face.outer_component = half_edge;
     }

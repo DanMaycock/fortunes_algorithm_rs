@@ -40,6 +40,9 @@ pub fn generate_diagram(points: &[Vector2]) -> Voronoi {
 
     bound_diagram(&mut voronoi, &beachline);
 
+    let bbox = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
+    bbox.intersect_diagram(&mut voronoi);
+
     voronoi
 }
 

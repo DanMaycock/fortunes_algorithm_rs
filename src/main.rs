@@ -14,14 +14,20 @@ const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
 const POINT_SIZE: f64 = 1.0;
 const LINE_WIDTH: f64 = 1.0;
+const VIEW_MARGIN: f64 = 10.0;
 
-const DRAW_DELAUNEY: bool = false;
-const DRAW_VORONI: bool = true;
+const DRAW_DELAUNEY_EDGES: bool = false;
+const DRAW_DELAUNEY_VERTICES: bool = true;
+const DRAW_VORONOI_EDGES: bool = true;
+const DRAW_VORONOI_VERTICES: bool = false;
 
-const NUM_POINTS: usize = 100;
+const NUM_POINTS: usize = 10_000;
 
 fn diagram_to_canvas(point: Vector2) -> Vector2 {
-    Vector2::new(point.x * WINDOW_WIDTH, point.y * WINDOW_HEIGHT)
+    Vector2::new(
+        (point.x * (WINDOW_WIDTH - 2.0 * VIEW_MARGIN)) + VIEW_MARGIN,
+        (point.y * (WINDOW_HEIGHT - 2.0 * VIEW_MARGIN)) + VIEW_MARGIN,
+    )
 }
 
 fn draw_point<G: Graphics>(point: Vector2, color: [f32; 4], c: Context, g: &mut G) {
@@ -47,60 +53,30 @@ fn draw_edge<G: Graphics>(from: Vector2, to: Vector2, color: [f32; 4], c: Contex
 }
 
 fn draw_voronoi_diagram<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
-    for (site, _) in diagram.sites.iter() {
-        let face = diagram.get_site_face(site).unwrap();
+    for face in diagram.get_faces() {
         let start_half_edge = diagram.get_face_outer_component(face).unwrap();
         let mut half_edge = Some(start_half_edge);
-        while half_edge.is_some() {
+        loop {
             if diagram.get_half_edge_origin(half_edge.unwrap()).is_some()
                 && diagram
                     .get_half_edge_destination(half_edge.unwrap())
                     .is_some()
             {
                 let origin = diagram.get_half_edge_origin(half_edge.unwrap()).unwrap();
-                let destination = diagram
-                    .get_half_edge_destination(half_edge.unwrap())
-                    .unwrap();
-                draw_edge(
-                    diagram.get_vertex_point(origin),
-                    diagram.get_vertex_point(destination),
-                    GREEN,
-                    c,
-                    g,
-                );
-            }
-            half_edge = diagram.get_half_edge_next(half_edge.unwrap());
-            if half_edge == Some(start_half_edge) {
-                break;
-            }
-        }
-    }
-}
-
-fn draw_voronoi_vertices<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
-    for vertex in diagram.get_voronoi_vertices() {
-        draw_point(vertex, RED, c, g);
-    }
-}
-
-fn draw_delauney_diagram<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
-    for (site, _) in diagram.sites.iter() {
-        let face = diagram.get_site_face(site).unwrap();
-        let start_half_edge = diagram.get_face_outer_component(face).unwrap();
-        let mut half_edge = Some(start_half_edge);
-        while half_edge.is_some() {
-            if diagram.get_half_edge_twin(half_edge.unwrap()).is_some() {
-                let twin_half_edge = diagram.get_half_edge_twin(half_edge.unwrap()).unwrap();
-                let twin_face = diagram.get_half_edge_incident_face(twin_half_edge);
-                if twin_face.is_some() {
-                    let twin_site = diagram.get_face_site(twin_face.unwrap());
+                if DRAW_VORONOI_EDGES {
+                    let destination = diagram
+                        .get_half_edge_destination(half_edge.unwrap())
+                        .unwrap();
                     draw_edge(
-                        diagram.get_site_point(site),
-                        diagram.get_site_point(twin_site.unwrap()),
-                        YELLOW,
+                        diagram.get_vertex_point(origin),
+                        diagram.get_vertex_point(destination),
+                        GREEN,
                         c,
                         g,
                     );
+                }
+                if DRAW_VORONOI_VERTICES {
+                    draw_point(diagram.get_vertex_point(origin), RED, c, g);
                 }
             }
             half_edge = diagram.get_half_edge_next(half_edge.unwrap());
@@ -111,9 +87,36 @@ fn draw_delauney_diagram<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) 
     }
 }
 
-fn draw_delauney_vertices<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
-    for vertex in diagram.get_delauney_vertices() {
-        draw_point(vertex, BLUE, c, g);
+fn draw_delauney_diagram<G: Graphics>(diagram: &Voronoi, c: Context, g: &mut G) {
+    for (site, _) in diagram.sites.iter() {
+        let face = diagram.get_site_face(site).unwrap();
+        let start_half_edge = diagram.get_face_outer_component(face).unwrap();
+        let mut half_edge = Some(start_half_edge);
+        loop {
+            if diagram.get_half_edge_twin(half_edge.unwrap()).is_some() {
+                if DRAW_DELAUNEY_EDGES {
+                    let twin_half_edge = diagram.get_half_edge_twin(half_edge.unwrap()).unwrap();
+                    let twin_face = diagram.get_half_edge_incident_face(twin_half_edge);
+                    if twin_face.is_some() {
+                        let twin_site = diagram.get_face_site(twin_face.unwrap());
+                        draw_edge(
+                            diagram.get_site_point(site),
+                            diagram.get_site_point(twin_site.unwrap()),
+                            BLUE,
+                            c,
+                            g,
+                        );
+                    }
+                }
+                if DRAW_DELAUNEY_VERTICES {
+                    draw_point(diagram.get_site_point(site), YELLOW, c, g);
+                }
+            }
+            half_edge = diagram.get_half_edge_next(half_edge.unwrap());
+            if half_edge == Some(start_half_edge) {
+                break;
+            }
+        }
     }
 }
 
@@ -123,6 +126,22 @@ fn main() {
     for _ in 0..NUM_POINTS {
         points.push(Vector2::new(rng.gen(), rng.gen()));
     }
+
+    // points.push(Vector2::new(0.4, 0.2));
+    // points.push(Vector2::new(0.6, 0.8));
+    // points.push(Vector2::new(0.2, 0.5));
+    // points.push(Vector2::new(0.8, 0.5));
+
+    // points.push(Vector2::new(0.30385094494118436, 0.8860153617244174));
+    // points.push(Vector2::new(0.845076189988206, 0.18082415106780558));
+    // points.push(Vector2::new(0.6589980234736939, 0.9688132107685202));
+    // points.push(Vector2::new(0.6967113081882237, 0.0522959492362467));
+    // points.push(Vector2::new(0.08778785092425367, 0.9655314002915569));
+    // points.push(Vector2::new(0.8957118196011163, 0.09347840598659074));
+    // points.push(Vector2::new(0.39726594912937996, 0.10856760088820794));
+    // points.push(Vector2::new(0.2461445312497319, 0.1033861069890476));
+    // points.push(Vector2::new(0.4917306839214608, 0.389725849923775));
+    // points.push(Vector2::new(0.6250039156079739, 0.0492028676716639));
 
     let now = Instant::now();
 
@@ -144,13 +163,11 @@ fn main() {
     while let Some(e) = window.next() {
         window.draw_2d(&e, |c, g| {
             clear([0.0, 0.0, 0.0, 1.0], g);
-            if DRAW_VORONI {
+            if DRAW_VORONOI_EDGES || DRAW_VORONOI_VERTICES {
                 draw_voronoi_diagram(&diagram, c, g);
-                draw_voronoi_vertices(&diagram, c, g);
             }
-            if DRAW_DELAUNEY {
+            if DRAW_DELAUNEY_EDGES || DRAW_DELAUNEY_VERTICES {
                 draw_delauney_diagram(&diagram, c, g);
-                draw_delauney_vertices(&diagram, c, g);
             }
         });
     }

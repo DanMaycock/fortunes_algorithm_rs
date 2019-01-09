@@ -67,6 +67,10 @@ impl<T> TypedVec<T> {
         }
     }
 
+    pub fn remove(&mut self, index: TypedIndex<T>) -> T {
+        self.0.remove(index.index)
+    }
+
     pub fn get(&self, index: TypedIndex<T>) -> Option<&T> {
         self.0.get(index.index)
     }

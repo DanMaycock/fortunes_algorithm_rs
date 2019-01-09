@@ -8,7 +8,7 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/voronoi.exe",
+            "program": "${workspaceFolder}/target/debug/fortunes_algorithm.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
