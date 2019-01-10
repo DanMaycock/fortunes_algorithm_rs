@@ -2,6 +2,7 @@ use crate::vector2::Vector2;
 use crate::voronoi::SiteIndex;
 use generational_arena::Index;
 use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::rc::{Rc, Weak};
 
 #[derive(Debug)]
@@ -17,8 +18,32 @@ pub struct Event {
     pub event_type: EventType,
 }
 
+impl PartialOrd for Event {
+    fn partial_cmp(&self, other: &Event) -> Option<Ordering> {
+        self.y.partial_cmp(&other.y)
+    }
+}
+
+impl PartialEq for Event {
+    fn eq(&self, other: &Event) -> bool {
+        self.y == other.y
+    }
+}
+
 pub struct EventQueue {
     queue: Vec<Rc<RefCell<Event>>>,
+}
+
+fn get_parent(index: usize) -> usize {
+    (index + 1) / 2 - 1
+}
+
+fn get_left(index: usize) -> usize {
+    2 * (index + 1) - 1
+}
+
+fn get_right(index: usize) -> usize {
+    2 * (index + 1)
 }
 
 impl EventQueue {
@@ -53,39 +78,63 @@ impl EventQueue {
     }
 
     pub fn pop(&mut self) -> Option<Event> {
-        match self.queue.pop() {
-            Some(event) => {
-                let event = Rc::try_unwrap(event);
-                match event {
-                    Ok(event) => Some(event.into_inner()),
-                    Err(_) => panic!("Could not unwrap event Rc, another strong reference exists"),
-                }
+        if self.queue.is_empty() {
+            None
+        } else {
+            self.swap(0, self.queue.len() - 1);
+            let popped_event = self.queue.pop().unwrap();
+            self.sift_down(0);
+            match Rc::try_unwrap(popped_event) {
+                Ok(event) => Some(event.into_inner()),
+                Err(_) => panic!("Could not unwrap event Rc, another strong reference exists"),
             }
-            None => None,
+        }
+    }
+
+    fn update(&mut self, index: usize) {
+        if index > 0 && *self.queue[get_parent(index)].borrow() > *self.queue[index].borrow() {
+            self.sift_up(index);
+        } else {
+            self.sift_down(index);
         }
     }
 
     pub fn remove_event(&mut self, index: usize) {
         self.swap(index, self.queue.len() - 1);
         self.queue.pop();
-        if self.queue.len() > 1 {
-            self.sift_down(index);
+        if index < self.queue.len() {
+            self.update(index);
         }
     }
 
     fn sift_up(&mut self, mut index: usize) {
-        while index != 0 && self.queue[index].borrow().y > self.queue[index - 1].borrow().y {
-            self.swap(index, index - 1);
-            index = index - 1;
+        while index > 0 && *self.queue[get_parent(index)].borrow() > *self.queue[index].borrow() {
+            self.swap(index, get_parent(index));
+            index = get_parent(index);
         }
     }
 
     fn sift_down(&mut self, mut index: usize) {
-        while index < self.queue.len() - 1
-            && self.queue[index].borrow().y < self.queue[index + 1].borrow().y
-        {
-            self.swap(index, index + 1);
-            index = index + 1;
+        loop {
+            let mut new_index = index;
+            let left = get_left(index);
+            let right = get_right(index);
+            if left < self.queue.len()
+                && *self.queue[new_index].borrow() > *self.queue[left].borrow()
+            {
+                new_index = left;
+            }
+            if right < self.queue.len()
+                && *self.queue[new_index].borrow() > *self.queue[right].borrow()
+            {
+                new_index = right;
+            }
+            if new_index != index {
+                self.swap(index, new_index);
+                index = new_index;
+            } else {
+                break;
+            }
         }
     }
 
@@ -125,7 +174,7 @@ mod tests {
         let mut events = EventQueue::new();
 
         // Insert an initial event
-        events.add_site_event(1.0, SiteIndex::new(1));
+        let event = events.add_site_event(1.0, SiteIndex::new(1));
 
         // Insert a second event after the first
         events.add_site_event(2.0, SiteIndex::new(1));
@@ -134,7 +183,8 @@ mod tests {
         events.add_site_event(0.5, SiteIndex::new(1));
 
         // Remove the middle event
-        events.remove_event(1);
+        let index = event.upgrade().unwrap().borrow().index;
+        events.remove_event(index);
 
         // Now pop the remaining events off the queue.
         assert_eq!(events.pop().unwrap().y, 0.5);
@@ -171,5 +221,88 @@ mod tests {
         assert_eq!(events.pop().unwrap().y, 0.8253313276763707);
         assert_eq!(events.pop().unwrap().y, 0.8712778711138446);
         assert_eq!(events.pop().unwrap().y, 0.9233746637708448);
+
+        assert!(events.pop().is_none());
+    }
+
+    #[test]
+    fn test_real_values_2() {
+        let mut events = EventQueue::new();
+        events.add_site_event(0.9291285618036174, SiteIndex::new(1));
+        events.add_site_event(0.11376973814842917, SiteIndex::new(1));
+        events.add_site_event(0.1440618044332418, SiteIndex::new(1));
+        events.add_site_event(0.7657112187832171, SiteIndex::new(1));
+        events.add_site_event(0.8967647496759451, SiteIndex::new(1));
+        events.add_site_event(0.7105418068248269, SiteIndex::new(1));
+        events.add_site_event(0.28622046504100773, SiteIndex::new(1));
+        events.add_site_event(0.4102014902644908, SiteIndex::new(1));
+        events.add_site_event(0.10483467797705237, SiteIndex::new(1));
+        events.add_site_event(0.15793206327012377, SiteIndex::new(1));
+
+        assert_eq!(events.pop().unwrap().y, 0.10483467797705237);
+        assert_eq!(events.pop().unwrap().y, 0.11376973814842917);
+        assert_eq!(events.pop().unwrap().y, 0.1440618044332418);
+
+        let remove_event_1 = events.add_site_event(2.503990033536895, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.15793206327012377);
+        events.add_site_event(0.1654313411464461, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.1654313411464461);
+        assert_eq!(events.pop().unwrap().y, 0.28622046504100773);
+        events.add_site_event(0.4123255955452093, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.4102014902644908);
+
+        let index = remove_event_1.upgrade().unwrap().borrow().index;
+        events.remove_event(index);
+
+        let remove_event_2 = events.add_site_event(0.456022039513554, SiteIndex::new(1));
+        events.add_site_event(0.44214569318026803, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.4123255955452093);
+
+        let index = remove_event_2.upgrade().unwrap().borrow().index;
+        events.remove_event(index);
+
+        events.add_site_event(0.44494200367797315, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.44214569318026803);
+        let remove_event_3 = events.add_site_event(1.2623214358900197, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.44494200367797315);
+        assert_eq!(events.pop().unwrap().y, 0.7105418068248269);
+        events.add_site_event(0.7118411183018967, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.7118411183018967);
+        let remove_event_4 = events.add_site_event(2.771502145276784, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.7657112187832171);
+        events.add_site_event(0.7781081082023289, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.7781081082023289);
+
+        let index = remove_event_3.upgrade().unwrap().borrow().index;
+        events.remove_event(index);
+
+        events.add_site_event(0.8600721837851804, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.8600721837851804);
+
+        let index = remove_event_4.upgrade().unwrap().borrow().index;
+        events.remove_event(index);
+
+        let remove_event_5 = events.add_site_event(1.1904311529677654, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.8967647496759451);
+        events.add_site_event(1.075984131974067, SiteIndex::new(1));
+        let remove_event_6 = events.add_site_event(4.154050538474555, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.9291285618036174);
+
+        let index = remove_event_6.upgrade().unwrap().borrow().index;
+        events.remove_event(index);
+
+        events.add_site_event(0.9703973834012277, SiteIndex::new(1));
+        events.add_site_event(0.9982671026021538, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 0.9703973834012277);
+        assert_eq!(events.pop().unwrap().y, 0.9982671026021538);
+
+        let index = remove_event_5.upgrade().unwrap().borrow().index;
+        events.remove_event(index);
+
+        events.add_site_event(1.1132702929111873, SiteIndex::new(1));
+        assert_eq!(events.pop().unwrap().y, 1.075984131974067);
+        assert_eq!(events.pop().unwrap().y, 1.1132702929111873);
+
+        assert!(events.pop().is_none());
     }
 }

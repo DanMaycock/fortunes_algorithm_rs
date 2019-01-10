@@ -132,24 +132,13 @@ fn main() {
     // points.push(Vector2::new(0.2, 0.5));
     // points.push(Vector2::new(0.8, 0.5));
 
-    // points.push(Vector2::new(0.30385094494118436, 0.8860153617244174));
-    // points.push(Vector2::new(0.845076189988206, 0.18082415106780558));
-    // points.push(Vector2::new(0.6589980234736939, 0.9688132107685202));
-    // points.push(Vector2::new(0.6967113081882237, 0.0522959492362467));
-    // points.push(Vector2::new(0.08778785092425367, 0.9655314002915569));
-    // points.push(Vector2::new(0.8957118196011163, 0.09347840598659074));
-    // points.push(Vector2::new(0.39726594912937996, 0.10856760088820794));
-    // points.push(Vector2::new(0.2461445312497319, 0.1033861069890476));
-    // points.push(Vector2::new(0.4917306839214608, 0.389725849923775));
-    // points.push(Vector2::new(0.6250039156079739, 0.0492028676716639));
-
     let now = Instant::now();
 
     let diagram = fortunes_algorithm::generate_diagram(&points);
 
     let elapsed = now.elapsed();
     println!(
-        "Diagram calculated in {}seconds and {} milliseconds",
+        "Diagram calculated in {} seconds and {} milliseconds",
         elapsed.as_secs(),
         elapsed.subsec_millis()
     );
