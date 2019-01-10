@@ -1,5 +1,5 @@
 use crate::vector2::Vector2;
-use crate::voronoi::SiteIndex;
+use crate::voronoi::FaceIndex;
 use generational_arena::Index;
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -7,7 +7,7 @@ use std::rc::{Rc, Weak};
 
 #[derive(Debug)]
 pub enum EventType {
-    SiteEvent { site: SiteIndex },
+    SiteEvent { face: FaceIndex },
     CircleEvent { point: Vector2, arc: Index },
 }
 
@@ -51,12 +51,12 @@ impl EventQueue {
         EventQueue { queue: vec![] }
     }
 
-    pub fn add_site_event(&mut self, y: f64, site: SiteIndex) -> Weak<RefCell<Event>> {
+    pub fn add_site_event(&mut self, y: f64, face: FaceIndex) -> Weak<RefCell<Event>> {
         let index = self.queue.len();
         let event = Rc::new(RefCell::new(Event {
             y,
             index,
-            event_type: EventType::SiteEvent { site },
+            event_type: EventType::SiteEvent { face },
         }));
         let weak_event = Rc::downgrade(&event);
         self.queue.push(event);
@@ -153,13 +153,13 @@ mod tests {
         let mut events = EventQueue::new();
 
         // Insert an initial event
-        events.add_site_event(1.0, SiteIndex::new(1));
+        events.add_site_event(1.0, FaceIndex::new(1));
 
         // Insert a second event after the first
-        events.add_site_event(2.0, SiteIndex::new(1));
+        events.add_site_event(2.0, FaceIndex::new(1));
 
         // Ad a third before the first
-        events.add_site_event(0.5, SiteIndex::new(1));
+        events.add_site_event(0.5, FaceIndex::new(1));
 
         // Now pop the events off the queue and check they are correct
         assert_eq!(events.pop().unwrap().y, 0.5);
@@ -174,13 +174,13 @@ mod tests {
         let mut events = EventQueue::new();
 
         // Insert an initial event
-        let event = events.add_site_event(1.0, SiteIndex::new(1));
+        let event = events.add_site_event(1.0, FaceIndex::new(1));
 
         // Insert a second event after the first
-        events.add_site_event(2.0, SiteIndex::new(1));
+        events.add_site_event(2.0, FaceIndex::new(1));
 
         // Ad a third before the first
-        events.add_site_event(0.5, SiteIndex::new(1));
+        events.add_site_event(0.5, FaceIndex::new(1));
 
         // Remove the middle event
         let index = event.upgrade().unwrap().borrow().index;
@@ -196,27 +196,27 @@ mod tests {
     #[test]
     fn test_real_values() {
         let mut events = EventQueue::new();
-        events.add_site_event(0.11141869537040194, SiteIndex::new(1));
-        events.add_site_event(0.12051964205677834, SiteIndex::new(1));
-        events.add_site_event(0.149179106485832, SiteIndex::new(2));
-        events.add_site_event(0.3305212298891148, SiteIndex::new(3));
-        events.add_site_event(0.8253313276763707, SiteIndex::new(4));
-        events.add_site_event(0.8712778711138446, SiteIndex::new(5));
-        events.add_site_event(0.9233746637708448, SiteIndex::new(6));
+        events.add_site_event(0.11141869537040194, FaceIndex::new(1));
+        events.add_site_event(0.12051964205677834, FaceIndex::new(1));
+        events.add_site_event(0.149179106485832, FaceIndex::new(2));
+        events.add_site_event(0.3305212298891148, FaceIndex::new(3));
+        events.add_site_event(0.8253313276763707, FaceIndex::new(4));
+        events.add_site_event(0.8712778711138446, FaceIndex::new(5));
+        events.add_site_event(0.9233746637708448, FaceIndex::new(6));
 
         assert_eq!(events.pop().unwrap().y, 0.11141869537040194);
         assert_eq!(events.pop().unwrap().y, 0.12051964205677834);
         assert_eq!(events.pop().unwrap().y, 0.149179106485832);
 
-        events.add_site_event(0.6730149742604588, SiteIndex::new(7));
+        events.add_site_event(0.6730149742604588, FaceIndex::new(7));
 
         assert_eq!(events.pop().unwrap().y, 0.3305212298891148);
 
-        events.add_site_event(3.380219501494663, SiteIndex::new(8));
+        events.add_site_event(3.380219501494663, FaceIndex::new(8));
 
         assert_eq!(events.pop().unwrap().y, 0.6730149742604588);
 
-        events.add_site_event(1.4484342273501185, SiteIndex::new(8));
+        events.add_site_event(1.4484342273501185, FaceIndex::new(8));
 
         assert_eq!(events.pop().unwrap().y, 0.8253313276763707);
         assert_eq!(events.pop().unwrap().y, 0.8712778711138446);
@@ -228,78 +228,78 @@ mod tests {
     #[test]
     fn test_real_values_2() {
         let mut events = EventQueue::new();
-        events.add_site_event(0.9291285618036174, SiteIndex::new(1));
-        events.add_site_event(0.11376973814842917, SiteIndex::new(1));
-        events.add_site_event(0.1440618044332418, SiteIndex::new(1));
-        events.add_site_event(0.7657112187832171, SiteIndex::new(1));
-        events.add_site_event(0.8967647496759451, SiteIndex::new(1));
-        events.add_site_event(0.7105418068248269, SiteIndex::new(1));
-        events.add_site_event(0.28622046504100773, SiteIndex::new(1));
-        events.add_site_event(0.4102014902644908, SiteIndex::new(1));
-        events.add_site_event(0.10483467797705237, SiteIndex::new(1));
-        events.add_site_event(0.15793206327012377, SiteIndex::new(1));
+        events.add_site_event(0.9291285618036174, FaceIndex::new(1));
+        events.add_site_event(0.11376973814842917, FaceIndex::new(1));
+        events.add_site_event(0.1440618044332418, FaceIndex::new(1));
+        events.add_site_event(0.7657112187832171, FaceIndex::new(1));
+        events.add_site_event(0.8967647496759451, FaceIndex::new(1));
+        events.add_site_event(0.7105418068248269, FaceIndex::new(1));
+        events.add_site_event(0.28622046504100773, FaceIndex::new(1));
+        events.add_site_event(0.4102014902644908, FaceIndex::new(1));
+        events.add_site_event(0.10483467797705237, FaceIndex::new(1));
+        events.add_site_event(0.15793206327012377, FaceIndex::new(1));
 
         assert_eq!(events.pop().unwrap().y, 0.10483467797705237);
         assert_eq!(events.pop().unwrap().y, 0.11376973814842917);
         assert_eq!(events.pop().unwrap().y, 0.1440618044332418);
 
-        let remove_event_1 = events.add_site_event(2.503990033536895, SiteIndex::new(1));
+        let remove_event_1 = events.add_site_event(2.503990033536895, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.15793206327012377);
-        events.add_site_event(0.1654313411464461, SiteIndex::new(1));
+        events.add_site_event(0.1654313411464461, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.1654313411464461);
         assert_eq!(events.pop().unwrap().y, 0.28622046504100773);
-        events.add_site_event(0.4123255955452093, SiteIndex::new(1));
+        events.add_site_event(0.4123255955452093, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.4102014902644908);
 
         let index = remove_event_1.upgrade().unwrap().borrow().index;
         events.remove_event(index);
 
-        let remove_event_2 = events.add_site_event(0.456022039513554, SiteIndex::new(1));
-        events.add_site_event(0.44214569318026803, SiteIndex::new(1));
+        let remove_event_2 = events.add_site_event(0.456022039513554, FaceIndex::new(1));
+        events.add_site_event(0.44214569318026803, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.4123255955452093);
 
         let index = remove_event_2.upgrade().unwrap().borrow().index;
         events.remove_event(index);
 
-        events.add_site_event(0.44494200367797315, SiteIndex::new(1));
+        events.add_site_event(0.44494200367797315, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.44214569318026803);
-        let remove_event_3 = events.add_site_event(1.2623214358900197, SiteIndex::new(1));
+        let remove_event_3 = events.add_site_event(1.2623214358900197, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.44494200367797315);
         assert_eq!(events.pop().unwrap().y, 0.7105418068248269);
-        events.add_site_event(0.7118411183018967, SiteIndex::new(1));
+        events.add_site_event(0.7118411183018967, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.7118411183018967);
-        let remove_event_4 = events.add_site_event(2.771502145276784, SiteIndex::new(1));
+        let remove_event_4 = events.add_site_event(2.771502145276784, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.7657112187832171);
-        events.add_site_event(0.7781081082023289, SiteIndex::new(1));
+        events.add_site_event(0.7781081082023289, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.7781081082023289);
 
         let index = remove_event_3.upgrade().unwrap().borrow().index;
         events.remove_event(index);
 
-        events.add_site_event(0.8600721837851804, SiteIndex::new(1));
+        events.add_site_event(0.8600721837851804, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.8600721837851804);
 
         let index = remove_event_4.upgrade().unwrap().borrow().index;
         events.remove_event(index);
 
-        let remove_event_5 = events.add_site_event(1.1904311529677654, SiteIndex::new(1));
+        let remove_event_5 = events.add_site_event(1.1904311529677654, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.8967647496759451);
-        events.add_site_event(1.075984131974067, SiteIndex::new(1));
-        let remove_event_6 = events.add_site_event(4.154050538474555, SiteIndex::new(1));
+        events.add_site_event(1.075984131974067, FaceIndex::new(1));
+        let remove_event_6 = events.add_site_event(4.154050538474555, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.9291285618036174);
 
         let index = remove_event_6.upgrade().unwrap().borrow().index;
         events.remove_event(index);
 
-        events.add_site_event(0.9703973834012277, SiteIndex::new(1));
-        events.add_site_event(0.9982671026021538, SiteIndex::new(1));
+        events.add_site_event(0.9703973834012277, FaceIndex::new(1));
+        events.add_site_event(0.9982671026021538, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 0.9703973834012277);
         assert_eq!(events.pop().unwrap().y, 0.9982671026021538);
 
         let index = remove_event_5.upgrade().unwrap().borrow().index;
         events.remove_event(index);
 
-        events.add_site_event(1.1132702929111873, SiteIndex::new(1));
+        events.add_site_event(1.1132702929111873, FaceIndex::new(1));
         assert_eq!(events.pop().unwrap().y, 1.075984131974067);
         assert_eq!(events.pop().unwrap().y, 1.1132702929111873);
 

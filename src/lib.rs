@@ -9,20 +9,30 @@ use crate::beachline::Beachline;
 use crate::boundingbox::BoundingBox;
 use crate::event::{EventQueue, EventType};
 use crate::vector2::{compute_circumcircle_center, Vector2};
-use crate::voronoi::{SiteIndex, VertexIndex, Voronoi};
+use crate::voronoi::{FaceIndex, VertexIndex, Voronoi};
 use generational_arena::Index;
 use std::f64;
+use std::time::Instant;
 
 pub fn generate_diagram(points: &[Vector2]) -> Voronoi {
+    let now = Instant::now();
+
     let mut event_queue = EventQueue::new();
 
     let mut voronoi = Voronoi::new(points);
 
     let mut beachline = Beachline::new();
 
-    for (index, site) in voronoi.sites.iter() {
-        event_queue.add_site_event(site.y(), index);
+    for &face in voronoi.get_faces().iter() {
+        event_queue.add_site_event(voronoi.get_face_point(face).y, face);
     }
+
+    let elapsed = now.elapsed();
+    println!(
+        "Initial setup completed in {} seconds and {} milliseconds",
+        elapsed.as_secs(),
+        elapsed.subsec_millis()
+    );
 
     loop {
         let event = event_queue.pop();
@@ -38,10 +48,24 @@ pub fn generate_diagram(points: &[Vector2]) -> Voronoi {
         }
     }
 
+    let elapsed = now.elapsed();
+    println!(
+        "Fortunes Algorithm complete in {} seconds and {} milliseconds",
+        elapsed.as_secs(),
+        elapsed.subsec_millis()
+    );
+
     bound_diagram(&mut voronoi, &beachline);
 
     let bbox = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
     bbox.intersect_diagram(&mut voronoi);
+
+    let elapsed = now.elapsed();
+    println!(
+        "Diagram bounding complete in {} seconds and {} milliseconds",
+        elapsed.as_secs(),
+        elapsed.subsec_millis()
+    );
 
     voronoi
 }
@@ -54,8 +78,8 @@ fn handle_event(
     event_queue: &mut EventQueue,
 ) {
     match event_type {
-        EventType::SiteEvent { site } => {
-            handle_site_event(site, voronoi, beachline, current_y, event_queue)
+        EventType::SiteEvent { face } => {
+            handle_site_event(face, voronoi, beachline, current_y, event_queue)
         }
         EventType::CircleEvent { point, arc } => {
             handle_circle_event(point, arc, voronoi, beachline, current_y, event_queue)
@@ -64,7 +88,7 @@ fn handle_event(
 }
 
 fn handle_site_event(
-    site: SiteIndex,
+    face: FaceIndex,
     voronoi: &mut Voronoi,
     beachline: &mut Beachline,
     current_y: f64,
@@ -72,24 +96,24 @@ fn handle_site_event(
 ) {
     // 1 Check if beachline is empty
     if !beachline.tree.has_root() {
-        beachline.create_root(site);
+        beachline.create_root(face);
         return;
     }
 
     // 2 Look for the arc above the site
-    let site_point = voronoi.get_site_point(site);
-    let middle_arc = beachline.locate_arc_above(site_point, current_y, voronoi);
+    let point = voronoi.get_face_point(face);
+    let middle_arc = beachline.locate_arc_above(point, current_y, voronoi);
     delete_event(middle_arc, beachline, event_queue);
 
     // 3 Replace this arc by new arcs
-    beachline.break_arc(middle_arc, site);
+    beachline.break_arc(middle_arc, face);
     let left_arc = beachline.tree.get_prev(middle_arc).unwrap();
     let right_arc = beachline.tree.get_next(middle_arc).unwrap();
 
     // 4 Add a new edge to the diagram
     let (half_edge_1, half_edge_2) = voronoi.add_edge(
-        beachline.get_site(left_arc).unwrap(),
-        beachline.get_site(middle_arc).unwrap(),
+        beachline.get_arc_face(left_arc).unwrap(),
+        beachline.get_arc_face(middle_arc).unwrap(),
     );
 
     beachline.set_right_half_edge(left_arc, Some(half_edge_1));
@@ -144,9 +168,9 @@ fn add_event(
     current_y: f64,
     event_queue: &mut EventQueue,
 ) {
-    let left_point = voronoi.get_site_point(beachline.get_site(left_arc).unwrap());
-    let middle_point = voronoi.get_site_point(beachline.get_site(middle_arc).unwrap());
-    let right_point = voronoi.get_site_point(beachline.get_site(right_arc).unwrap());
+    let left_point = voronoi.get_face_point(beachline.get_arc_face(left_arc).unwrap());
+    let middle_point = voronoi.get_face_point(beachline.get_arc_face(middle_arc).unwrap());
+    let right_point = voronoi.get_face_point(beachline.get_arc_face(right_arc).unwrap());
     let center = compute_circumcircle_center(left_point, middle_point, right_point);
     let radius = center.get_distance(middle_point);
     let event_y = center.y + radius;
@@ -252,8 +276,8 @@ fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Voronoi, beachline:
     let next_half_edge = beachline.get_left_half_edge(next);
 
     let (half_edge_1, half_edge_2) = voronoi.add_edge(
-        beachline.get_site(prev).unwrap(),
-        beachline.get_site(next).unwrap(),
+        beachline.get_arc_face(prev).unwrap(),
+        beachline.get_arc_face(next).unwrap(),
     );
 
     beachline.set_right_half_edge(prev, Some(half_edge_1));

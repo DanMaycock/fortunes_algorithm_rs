@@ -383,9 +383,4 @@ mod tests {
         let intersections = bbox.get_intersections(&origin, &destination);
         assert_eq!(intersections.len(), 2);
     }
-
-    fn bound_face_test() {
-        // Create a simple diagram with a single face
-
-    }
 }

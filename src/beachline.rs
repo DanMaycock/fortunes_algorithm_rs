@@ -1,7 +1,7 @@
 use crate::boundingbox::{BoundingBox, Side};
 use crate::event::Event;
 use crate::vector2::Vector2;
-use crate::voronoi::{HalfEdgeIndex, SiteIndex, Voronoi};
+use crate::voronoi::{FaceIndex, HalfEdgeIndex, Voronoi};
 use binary_search_tree::Tree;
 use generational_arena::Index;
 use std::cell::RefCell;
@@ -10,7 +10,7 @@ use std::rc::Weak;
 
 #[derive(Debug, Clone)]
 pub struct Arc {
-    site: Option<SiteIndex>,
+    face: Option<FaceIndex>,
     left_half_edge: Option<HalfEdgeIndex>,
     right_half_edge: Option<HalfEdgeIndex>,
 
@@ -18,9 +18,9 @@ pub struct Arc {
 }
 
 impl Arc {
-    fn new(site: SiteIndex) -> Self {
+    fn new(face: FaceIndex) -> Self {
         Arc {
-            site: Some(site),
+            face: Some(face),
             left_half_edge: None,
             right_half_edge: None,
 
@@ -38,8 +38,8 @@ impl Beachline {
         Beachline { tree: Tree::new() }
     }
 
-    pub fn create_root(&mut self, site: SiteIndex) -> Index {
-        self.tree.create_root(Arc::new(site))
+    pub fn create_root(&mut self, face: FaceIndex) -> Index {
+        self.tree.create_root(Arc::new(face))
     }
 
     pub fn locate_arc_above(&self, point: Vector2, y: f64, voronoi: &Voronoi) -> Index {
@@ -47,8 +47,8 @@ impl Beachline {
         let mut found = false;
         while !found {
             // Check for the special case where the site for the node is at the current y
-            let site = self.get_site(current_arc).unwrap();
-            let current_arc_focus = voronoi.get_site_point(site);
+            let face = self.get_arc_face(current_arc).unwrap();
+            let current_arc_focus = voronoi.get_face_point(face);
             if current_arc_focus.y == y {
                 if point.x < current_arc_focus.x {
                     current_arc = self.tree.get_left(current_arc).unwrap();
@@ -62,20 +62,20 @@ impl Beachline {
                 let next = self.tree.get_next(current_arc);
 
                 let breakpoint_left = if prev.is_some() {
-                    let prev_site = self.get_site(prev.unwrap()).unwrap();
+                    let prev_face = self.get_arc_face(prev.unwrap()).unwrap();
                     compute_breakpoint(
-                        voronoi.get_site_point(prev_site),
-                        voronoi.get_site_point(site),
+                        voronoi.get_face_point(prev_face),
+                        voronoi.get_face_point(face),
                         y,
                     )
                 } else {
                     f64::NEG_INFINITY
                 };
                 let breakpoint_right = if next.is_some() {
-                    let next_site = self.get_site(next.unwrap()).unwrap();
+                    let next_face = self.get_arc_face(next.unwrap()).unwrap();
                     compute_breakpoint(
-                        voronoi.get_site_point(site),
-                        voronoi.get_site_point(next_site),
+                        voronoi.get_face_point(face),
+                        voronoi.get_face_point(next_face),
                         y,
                     )
                 } else {
@@ -94,19 +94,19 @@ impl Beachline {
         current_arc
     }
 
-    pub fn break_arc(&mut self, node: Index, new_site: SiteIndex) {
+    pub fn break_arc(&mut self, node: Index, new_face: FaceIndex) {
         let left_half_edge = self.get_left_half_edge(node);
         let right_half_edge = self.get_right_half_edge(node);
-        let arc_site = self.get_site(node).unwrap();
+        let arc_face = self.get_arc_face(node).unwrap();
 
         // Replace contents of existing node to an arc for a new site
-        self.tree.set_contents(node, Arc::new(new_site));
+        self.tree.set_contents(node, Arc::new(new_face));
 
         // Create new tree nodes either side of the existing node
-        let left_arc = self.tree.insert_before(node, Arc::new(arc_site));
+        let left_arc = self.tree.insert_before(node, Arc::new(arc_face));
         self.set_left_half_edge(left_arc, left_half_edge);
 
-        let right_arc = self.tree.insert_after(node, Arc::new(arc_site));
+        let right_arc = self.tree.insert_after(node, Arc::new(arc_face));
         self.set_right_half_edge(right_arc, right_half_edge);
     }
 
@@ -117,11 +117,11 @@ impl Beachline {
             let mut left_node = self.tree.get_leftmost_node();
             let mut right_node = self.tree.get_next(left_node.unwrap());
             while right_node.is_some() {
-                let left_site = self.get_site(left_node.unwrap()).unwrap();
-                let right_site = self.get_site(right_node.unwrap()).unwrap();
+                let left_face = self.get_arc_face(left_node.unwrap()).unwrap();
+                let right_face = self.get_arc_face(right_node.unwrap()).unwrap();
 
-                let left_point = voronoi.get_site_point(left_site);
-                let right_point = voronoi.get_site_point(right_site);
+                let left_point = voronoi.get_face_point(left_face);
+                let right_point = voronoi.get_face_point(right_face);
 
                 let direction = (left_point - right_point).get_orthogonal();
                 let origin = (left_point + right_point) * 0.5;
@@ -236,9 +236,9 @@ impl Beachline {
         }
     }
 
-    pub fn get_site(&self, node: Index) -> Option<SiteIndex> {
+    pub fn get_arc_face(&self, node: Index) -> Option<FaceIndex> {
         let arc = self.tree.get_contents(node);
-        arc.site
+        arc.face
     }
 
     pub fn set_left_half_edge(&mut self, node: Index, left_half_edge: Option<HalfEdgeIndex>) {
