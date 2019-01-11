@@ -268,12 +268,11 @@ fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Voronoi, beachline:
     voronoi.set_half_edge_destination(next_left_half_edge, Some(vertex));
 
     // Join the edges of the middle arc
-    voronoi.set_half_edge_next(left_half_edge, Some(right_half_edge));
-    voronoi.set_half_edge_prev(right_half_edge, Some(left_half_edge));
+    voronoi.link_half_edges(left_half_edge, right_half_edge);
 
     // Create a new edge
-    let prev_half_edge = beachline.get_right_half_edge(prev);
-    let next_half_edge = beachline.get_left_half_edge(next);
+    let prev_half_edge = beachline.get_right_half_edge(prev).unwrap();
+    let next_half_edge = beachline.get_left_half_edge(next).unwrap();
 
     let (half_edge_1, half_edge_2) = voronoi.add_edge(
         beachline.get_arc_face(prev).unwrap(),
@@ -285,10 +284,9 @@ fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Voronoi, beachline:
 
     voronoi.set_half_edge_destination(half_edge_1, Some(vertex));
     voronoi.set_half_edge_origin(half_edge_2, Some(vertex));
-    voronoi.set_half_edge_next(half_edge_1, prev_half_edge);
-    voronoi.set_half_edge_prev(prev_half_edge.unwrap(), Some(half_edge_1));
-    voronoi.set_half_edge_next(next_half_edge.unwrap(), Some(half_edge_2));
-    voronoi.set_half_edge_prev(half_edge_2, next_half_edge);
+
+    voronoi.link_half_edges(half_edge_1, prev_half_edge);
+    voronoi.link_half_edges(next_half_edge, half_edge_2);
 
     // Remove the arc from the beachline
     beachline.tree.delete_node(arc);
@@ -300,7 +298,8 @@ fn bound_diagram(voronoi: &mut Voronoi, beachline: &Beachline) {
     let mut right: f64 = 1.0;
     let mut top: f64 = 0.0;
     let mut bottom: f64 = 1.0;
-    for point in voronoi.get_voronoi_vertices() {
+    for vertex in voronoi.get_vertices() {
+        let point = voronoi.get_vertex_point(vertex);
         left = left.min(point.x);
         right = right.max(point.x);
         top = top.min(point.y);

@@ -306,26 +306,23 @@ impl BoundingBox {
         end_edge: HalfEdgeIndex,
         end_side: Side,
     ) {
-        let mut halfedge = start_edge;
+        let mut edge = start_edge;
         let mut side = start_side;
-        let incident_face = voronoi.get_half_edge_incident_face(halfedge).unwrap();
+        let incident_face = voronoi.get_half_edge_incident_face(edge).unwrap();
         while side != end_side {
-            let new_halfedge = voronoi.create_half_edge(incident_face);
-            voronoi.set_half_edge_next(halfedge, Some(new_halfedge));
-            voronoi.set_half_edge_prev(new_halfedge, Some(halfedge));
-            voronoi.set_half_edge_origin(new_halfedge, voronoi.get_half_edge_destination(halfedge));
+            let new_edge = voronoi.create_half_edge(incident_face);
+            voronoi.link_half_edges(edge, new_edge);
+            voronoi.set_half_edge_origin(new_edge, voronoi.get_half_edge_destination(edge));
             let destination = voronoi.create_vertex(self.get_corner(side, side.next()));
-            voronoi.set_half_edge_destination(new_halfedge, Some(destination));
+            voronoi.set_half_edge_destination(new_edge, Some(destination));
             side = side.next();
-            halfedge = new_halfedge;
+            edge = new_edge;
         }
-        let new_halfedge = voronoi.create_half_edge(incident_face);
-        voronoi.set_half_edge_next(halfedge, Some(new_halfedge));
-        voronoi.set_half_edge_prev(new_halfedge, Some(halfedge));
-        voronoi.set_half_edge_prev(end_edge, Some(new_halfedge));
-        voronoi.set_half_edge_next(new_halfedge, Some(end_edge));
-        voronoi.set_half_edge_origin(new_halfedge, voronoi.get_half_edge_destination(halfedge));
-        voronoi.set_half_edge_destination(new_halfedge, voronoi.get_half_edge_origin(end_edge));
+        let new_edge = voronoi.create_half_edge(incident_face);
+        voronoi.link_half_edges(edge, new_edge);
+        voronoi.link_half_edges(new_edge, end_edge);
+        voronoi.set_half_edge_origin(new_edge, voronoi.get_half_edge_destination(edge));
+        voronoi.set_half_edge_destination(new_edge, voronoi.get_half_edge_origin(end_edge));
     }
 }
 

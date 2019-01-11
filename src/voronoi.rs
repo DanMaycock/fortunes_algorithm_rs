@@ -38,6 +38,28 @@ impl HalfEdge {
     }
 }
 
+pub struct EdgeIterator<'a> {
+    voronoi: &'a Voronoi,
+    start_edge: HalfEdgeIndex,
+    current_edge: Option<HalfEdgeIndex>,
+}
+
+impl<'a> Iterator for EdgeIterator<'a> {
+    type Item = HalfEdgeIndex;
+
+    fn next(&mut self) -> Option<HalfEdgeIndex> {
+        if self.current_edge.is_none() {
+            self.current_edge = Some(self.start_edge);
+        } else {
+            self.current_edge = self.voronoi.get_half_edge_next(self.current_edge.unwrap());
+            if self.current_edge == Some(self.start_edge) {
+                self.current_edge = None;
+            }
+        }
+        self.current_edge
+    }
+}
+
 pub struct Face {
     point: Vector2,
     outer_component: Option<HalfEdgeIndex>,
@@ -73,8 +95,23 @@ impl Voronoi {
         voronoi
     }
 
+    // Returns the index of every face in the diagram
     pub fn get_faces(&self) -> Vec<FaceIndex> {
         self.faces.iter().map(|(index, _)| index).collect()
+    }
+
+    // Returns the index of every face in the diagram
+    pub fn get_vertices(&self) -> Vec<VertexIndex> {
+        self.vertices.iter().map(|(index, _)| index).collect()
+    }
+
+    pub fn outer_edge_iter(&self, face: FaceIndex) -> EdgeIterator {
+        let start_edge = self.get_face_outer_component(face).unwrap();
+        EdgeIterator {
+            voronoi: self,
+            start_edge,
+            current_edge: None,
+        }
     }
 
     // Constructs a twin pair of halfedges that represent the edge
@@ -102,10 +139,6 @@ impl Voronoi {
         }
 
         new_half_edge
-    }
-
-    pub fn remove_half_edge(&mut self, halfedge: HalfEdgeIndex) {
-        self.half_edges.remove(halfedge);
     }
 
     pub fn create_vertex(&mut self, point: Vector2) -> VertexIndex {
@@ -151,7 +184,18 @@ impl Voronoi {
         half_edge.prev
     }
 
-    pub fn set_half_edge_prev(
+    pub fn get_half_edge_next(&self, half_edge: HalfEdgeIndex) -> Option<HalfEdgeIndex> {
+        let half_edge = self.half_edges.get(half_edge).unwrap();
+        half_edge.next
+    }
+
+    // Links two half edges so that they are consectutive. 
+    pub fn link_half_edges(&mut self, prev: HalfEdgeIndex, next: HalfEdgeIndex) {
+        self.set_half_edge_prev(next, Some(prev));
+        self.set_half_edge_next(prev, Some(next));
+    }
+
+    fn set_half_edge_prev(
         &mut self,
         half_edge: HalfEdgeIndex,
         prev_half_edge: Option<HalfEdgeIndex>,
@@ -160,12 +204,7 @@ impl Voronoi {
         half_edge.prev = prev_half_edge;
     }
 
-    pub fn get_half_edge_next(&self, half_edge: HalfEdgeIndex) -> Option<HalfEdgeIndex> {
-        let half_edge = self.half_edges.get(half_edge).unwrap();
-        half_edge.next
-    }
-
-    pub fn set_half_edge_next(
+    fn set_half_edge_next(
         &mut self,
         half_edge: HalfEdgeIndex,
         next_half_edge: Option<HalfEdgeIndex>,
@@ -201,16 +240,5 @@ impl Voronoi {
     pub fn get_vertex_point(&self, vertex: VertexIndex) -> Vector2 {
         let vertex = self.vertices.get(vertex).unwrap();
         vertex.point
-    }
-
-    pub fn get_voronoi_vertices(&self) -> Vec<Vector2> {
-        self.vertices
-            .iter()
-            .map(|(_, vertex)| vertex.point)
-            .collect()
-    }
-
-    pub fn get_delauney_vertices(&self) -> Vec<Vector2> {
-        self.faces.iter().map(|(_, face)| face.point).collect()
     }
 }

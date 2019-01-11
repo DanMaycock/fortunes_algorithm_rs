@@ -129,10 +129,10 @@ impl Beachline {
 
                 let vertex = voronoi.create_vertex(intersection.0);
 
-                let departing_edge = self.get_right_half_edge(left_node.unwrap()).unwrap();
-                voronoi.set_half_edge_origin(departing_edge, Some(vertex));
-                let arriving_edge = self.get_left_half_edge(right_node.unwrap()).unwrap();
-                voronoi.set_half_edge_destination(arriving_edge, Some(vertex));
+                let arriving_edge = self.get_right_half_edge(left_node.unwrap()).unwrap();
+                voronoi.set_half_edge_origin(arriving_edge, Some(vertex));
+                let departing_edge = self.get_left_half_edge(right_node.unwrap()).unwrap();
+                voronoi.set_half_edge_destination(departing_edge, Some(vertex));
 
                 // Store the vertex on the boundary
                 departing_edges.push((departing_edge, intersection.1));
@@ -141,43 +141,38 @@ impl Beachline {
                 left_node = right_node;
                 right_node = self.tree.get_next(left_node.unwrap());
             }
-            for (departing_halfedge, departing_side) in departing_edges {
+            for (departing_edge, departing_side) in departing_edges {
                 // Find the corresponding arriving edge
-                let mut current_halfedge = departing_halfedge;
-                while voronoi.get_half_edge_next(current_halfedge).is_some() {
-                    current_halfedge = voronoi.get_half_edge_next(current_halfedge).unwrap();
+                let mut current_edge = departing_edge;
+                while voronoi.get_half_edge_prev(current_edge).is_some() {
+                    current_edge = voronoi.get_half_edge_prev(current_edge).unwrap();
                 }
-                let &(arriving_halfedge, arriving_side) = arriving_edges
+                let &(arriving_edge, arriving_side) = arriving_edges
                     .iter()
-                    .find(|&&(edge, _)| edge == current_halfedge)
+                    .find(|&&(edge, _)| edge == current_edge)
                     .unwrap();
 
                 // The arriving and departing vertices should have the same incident face
-                assert_eq!(
-                    voronoi.get_half_edge_incident_face(departing_halfedge),
-                    voronoi.get_half_edge_incident_face(arriving_halfedge)
+                debug_assert_eq!(
+                    voronoi.get_half_edge_incident_face(departing_edge),
+                    voronoi.get_half_edge_incident_face(arriving_edge)
                 );
-                let face = voronoi
-                    .get_half_edge_incident_face(arriving_halfedge)
-                    .unwrap();
+                let face = voronoi.get_half_edge_incident_face(arriving_edge).unwrap();
                 if departing_side == arriving_side {
                     // Both arriving and departing edges are on the same side so no need to add a corner vertex
                     let new_edge = voronoi.create_half_edge(face);
 
                     voronoi.set_half_edge_origin(
                         new_edge,
-                        voronoi.get_half_edge_destination(arriving_halfedge),
+                        voronoi.get_half_edge_origin(arriving_edge),
                     );
                     voronoi.set_half_edge_destination(
                         new_edge,
-                        voronoi.get_half_edge_origin(departing_halfedge),
+                        voronoi.get_half_edge_destination(departing_edge),
                     );
 
-                    voronoi.set_half_edge_next(new_edge, Some(departing_halfedge));
-                    voronoi.set_half_edge_prev(departing_halfedge, Some(new_edge));
-
-                    voronoi.set_half_edge_prev(new_edge, Some(arriving_halfedge));
-                    voronoi.set_half_edge_next(arriving_halfedge, Some(new_edge));
+                    voronoi.link_half_edges(departing_edge, new_edge);
+                    voronoi.link_half_edges(new_edge, arriving_edge);
                 } else {
                     // Arriving and departing edges are on different sides so we need to add a corner vertex
                     // First we have to figure out which corner to add
@@ -214,23 +209,18 @@ impl Beachline {
 
                     voronoi.set_half_edge_origin(
                         first_edge,
-                        voronoi.get_half_edge_destination(arriving_halfedge),
+                        voronoi.get_half_edge_destination(departing_edge),
                     );
                     voronoi.set_half_edge_destination(first_edge, Some(new_corner));
                     voronoi.set_half_edge_origin(second_edge, Some(new_corner));
                     voronoi.set_half_edge_destination(
                         second_edge,
-                        voronoi.get_half_edge_origin(departing_halfedge),
+                        voronoi.get_half_edge_origin(arriving_edge),
                     );
 
-                    voronoi.set_half_edge_prev(first_edge, Some(arriving_halfedge));
-                    voronoi.set_half_edge_next(arriving_halfedge, Some(first_edge));
-
-                    voronoi.set_half_edge_prev(second_edge, Some(first_edge));
-                    voronoi.set_half_edge_next(first_edge, Some(second_edge));
-
-                    voronoi.set_half_edge_prev(departing_halfedge, Some(second_edge));
-                    voronoi.set_half_edge_next(second_edge, Some(departing_halfedge));
+                    voronoi.link_half_edges(departing_edge, first_edge);
+                    voronoi.link_half_edges(first_edge, second_edge);
+                    voronoi.link_half_edges(second_edge, arriving_edge);
                 }
             }
         }
