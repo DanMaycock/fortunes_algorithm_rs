@@ -12,6 +12,7 @@ pub enum Side {
 }
 
 impl Side {
+    // Iterates round the sides in an anti clockwise direction
     fn next(&self) -> Side {
         match self {
             Side::Left => Side::Bottom,
@@ -298,7 +299,7 @@ impl BoundingBox {
         // TODO remove unneeded vertices from the diagram
     }
 
-    fn link_vertices(
+    pub fn link_vertices(
         &self,
         voronoi: &mut Voronoi,
         start_edge: HalfEdgeIndex,

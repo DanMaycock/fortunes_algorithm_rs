@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 pub struct TypedVec<T>(Vec<T>);
 
 pub struct TypedIndex<T> {
-    index: usize,
+    pub index: usize,
     phantom: PhantomData<T>,
 }
 

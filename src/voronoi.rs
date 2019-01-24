@@ -100,7 +100,7 @@ impl Voronoi {
         self.faces.iter().map(|(index, _)| index).collect()
     }
 
-    // Returns the index of every face in the diagram
+    // Returns the index of every vertex in the diagram
     pub fn get_vertices(&self) -> Vec<VertexIndex> {
         self.vertices.iter().map(|(index, _)| index).collect()
     }
@@ -189,7 +189,7 @@ impl Voronoi {
         half_edge.next
     }
 
-    // Links two half edges so that they are consectutive. 
+    // Links two half edges so that they are consectutive.
     pub fn link_half_edges(&mut self, prev: HalfEdgeIndex, next: HalfEdgeIndex) {
         self.set_half_edge_prev(next, Some(prev));
         self.set_half_edge_next(prev, Some(next));
@@ -223,6 +223,11 @@ impl Voronoi {
         half_edge.origin
     }
 
+    pub fn get_half_edge_origin_point(&self, half_edge: HalfEdgeIndex) -> Vector2 {
+        let half_edge = self.half_edges.get(half_edge).unwrap();
+        self.get_vertex_point(half_edge.origin.unwrap())
+    }
+
     pub fn set_half_edge_destination(
         &mut self,
         half_edge: HalfEdgeIndex,
@@ -240,5 +245,15 @@ impl Voronoi {
     pub fn get_vertex_point(&self, vertex: VertexIndex) -> Vector2 {
         let vertex = self.vertices.get(vertex).unwrap();
         vertex.point
+    }
+
+    pub fn calculate_face_center(&self, face: FaceIndex) -> Vector2 {
+        let mut acc = Vector2::new(0.0, 0.0);
+        let mut c = 0;
+        for edge in self.outer_edge_iter(face) {
+            acc = acc + self.get_half_edge_origin_point(edge);
+            c += 1;
+        }
+        acc * (1.0 / c as f64)
     }
 }

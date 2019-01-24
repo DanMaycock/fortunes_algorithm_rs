@@ -1,4 +1,4 @@
-use crate::boundingbox::{BoundingBox, Side};
+use crate::boundingbox::BoundingBox;
 use crate::event::Event;
 use crate::vector2::Vector2;
 use crate::voronoi::{FaceIndex, HalfEdgeIndex, Voronoi};
@@ -157,71 +157,14 @@ impl Beachline {
                     voronoi.get_half_edge_incident_face(departing_edge),
                     voronoi.get_half_edge_incident_face(arriving_edge)
                 );
-                let face = voronoi.get_half_edge_incident_face(arriving_edge).unwrap();
-                if departing_side == arriving_side {
-                    // Both arriving and departing edges are on the same side so no need to add a corner vertex
-                    let new_edge = voronoi.create_half_edge(face);
 
-                    voronoi.set_half_edge_origin(
-                        new_edge,
-                        voronoi.get_half_edge_origin(arriving_edge),
-                    );
-                    voronoi.set_half_edge_destination(
-                        new_edge,
-                        voronoi.get_half_edge_destination(departing_edge),
-                    );
-
-                    voronoi.link_half_edges(departing_edge, new_edge);
-                    voronoi.link_half_edges(new_edge, arriving_edge);
-                } else {
-                    // Arriving and departing edges are on different sides so we need to add a corner vertex
-                    // First we have to figure out which corner to add
-                    let new_corner = if departing_side == Side::Top && arriving_side == Side::Left
-                        || departing_side == Side::Left && arriving_side == Side::Top
-                    {
-                        // Top left
-                        voronoi.create_vertex(bbox.get_top_left())
-                    } else if departing_side == Side::Top && arriving_side == Side::Right
-                        || departing_side == Side::Right && arriving_side == Side::Top
-                    {
-                        // Top Right
-                        voronoi.create_vertex(bbox.get_top_right())
-                    } else if departing_side == Side::Bottom && arriving_side == Side::Left
-                        || departing_side == Side::Left && arriving_side == Side::Bottom
-                    {
-                        // Bottom left
-                        voronoi.create_vertex(bbox.get_bottom_left())
-                    } else if departing_side == Side::Bottom && arriving_side == Side::Right
-                        || departing_side == Side::Right && arriving_side == Side::Bottom
-                    {
-                        // Bottom Right
-                        voronoi.create_vertex(bbox.get_bottom_right())
-                    } else {
-                        panic!(
-                            "Invalid corner combination {:?} and {:?}",
-                            departing_side, arriving_side
-                        );
-                    };
-
-                    // We need an edge from the arriving half edge to the corner and from the corner to the departing half edge
-                    let first_edge = voronoi.create_half_edge(face);
-                    let second_edge = voronoi.create_half_edge(face);
-
-                    voronoi.set_half_edge_origin(
-                        first_edge,
-                        voronoi.get_half_edge_destination(departing_edge),
-                    );
-                    voronoi.set_half_edge_destination(first_edge, Some(new_corner));
-                    voronoi.set_half_edge_origin(second_edge, Some(new_corner));
-                    voronoi.set_half_edge_destination(
-                        second_edge,
-                        voronoi.get_half_edge_origin(arriving_edge),
-                    );
-
-                    voronoi.link_half_edges(departing_edge, first_edge);
-                    voronoi.link_half_edges(first_edge, second_edge);
-                    voronoi.link_half_edges(second_edge, arriving_edge);
-                }
+                bbox.link_vertices(
+                    voronoi,
+                    departing_edge,
+                    departing_side,
+                    arriving_edge,
+                    arriving_side,
+                );
             }
         }
     }

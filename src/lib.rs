@@ -12,11 +12,8 @@ use crate::vector2::{compute_circumcircle_center, Vector2};
 use crate::voronoi::{FaceIndex, VertexIndex, Voronoi};
 use generational_arena::Index;
 use std::f64;
-use std::time::Instant;
 
 pub fn generate_diagram(points: &[Vector2]) -> Voronoi {
-    let now = Instant::now();
-
     let mut event_queue = EventQueue::new();
 
     let mut voronoi = Voronoi::new(points);
@@ -26,13 +23,6 @@ pub fn generate_diagram(points: &[Vector2]) -> Voronoi {
     for &face in voronoi.get_faces().iter() {
         event_queue.add_site_event(voronoi.get_face_point(face).y, face);
     }
-
-    let elapsed = now.elapsed();
-    println!(
-        "Initial setup completed in {} seconds and {} milliseconds",
-        elapsed.as_secs(),
-        elapsed.subsec_millis()
-    );
 
     loop {
         let event = event_queue.pop();
@@ -48,26 +38,70 @@ pub fn generate_diagram(points: &[Vector2]) -> Voronoi {
         }
     }
 
-    let elapsed = now.elapsed();
-    println!(
-        "Fortunes Algorithm complete in {} seconds and {} milliseconds",
-        elapsed.as_secs(),
-        elapsed.subsec_millis()
-    );
-
     bound_diagram(&mut voronoi, &beachline);
-
     let bbox = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
     bbox.intersect_diagram(&mut voronoi);
-
-    let elapsed = now.elapsed();
-    println!(
-        "Diagram bounding complete in {} seconds and {} milliseconds",
-        elapsed.as_secs(),
-        elapsed.subsec_millis()
-    );
-
     voronoi
+}
+
+pub fn lloyds_relaxation(points: &[Vector2], iterations: usize) -> Vec<Vector2> {
+    let mut points = points.to_vec();
+    for _ in 0..iterations {
+        let voronoi = generate_diagram(&points);
+        points.clear();
+        for face in voronoi.get_faces() {
+            points.push(voronoi.calculate_face_center(face));
+        }
+    }
+    points
+}
+
+pub fn get_voronoi_vertices(diagram: &Voronoi) -> Vec<Vector2> {
+    diagram
+        .get_vertices()
+        .iter()
+        .map(|&vertex| diagram.get_vertex_point(vertex))
+        .collect()
+}
+
+pub fn get_voronoi_edges(diagram: &Voronoi) -> Vec<(usize, usize)> {
+    let mut edges = vec![];
+    for face in diagram.get_faces() {
+        for edge in diagram.outer_edge_iter(face) {
+            if diagram.get_half_edge_origin(edge).is_some()
+                && diagram.get_half_edge_destination(edge).is_some()
+            {
+                let origin = diagram.get_half_edge_origin(edge).unwrap();
+                let destination = diagram.get_half_edge_destination(edge).unwrap();
+                edges.push((origin.index, destination.index));
+            }
+        }
+    }
+    edges
+}
+
+pub fn get_delauney_vertices(diagram: &Voronoi) -> Vec<Vector2> {
+    diagram
+        .get_faces()
+        .iter()
+        .map(|&face| diagram.get_face_point(face))
+        .collect()
+}
+
+pub fn get_delauney_edges(diagram: &Voronoi) -> Vec<(usize, usize)> {
+    let mut edges = vec![];
+    for face in diagram.get_faces() {
+        for edge in diagram.outer_edge_iter(face) {
+            if diagram.get_half_edge_twin(edge).is_some() {
+                let twin = diagram.get_half_edge_twin(edge).unwrap();
+                let twin_face = diagram.get_half_edge_incident_face(twin);
+                if twin_face.is_some() {
+                    edges.push((face.index, twin_face.unwrap().index));
+                }
+            }
+        }
+    }
+    edges
 }
 
 fn handle_event(
