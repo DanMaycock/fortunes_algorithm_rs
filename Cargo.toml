@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 binary_search_tree = {path = "C:/Users/Dan/Documents/Rust/binary_search_tree"}
 generational-arena = "0.2.0"
-rand = "0.6.1"
+rand = "0.6.4"
 log = "0.4.6"
-piston_window = "0.85.0"
+piston_window = "0.87.0"
 

@@ -13,7 +13,7 @@ pub enum Side {
 
 impl Side {
     // Iterates round the sides in an anti clockwise direction
-    fn next(&self) -> Side {
+    fn next(self) -> Side {
         match self {
             Side::Left => Side::Bottom,
             Side::Top => Side::Left,

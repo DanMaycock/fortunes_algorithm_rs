@@ -49,7 +49,7 @@ impl Beachline {
             // Check for the special case where the site for the node is at the current y
             let face = self.get_arc_face(current_arc).unwrap();
             let current_arc_focus = voronoi.get_face_point(face);
-            if current_arc_focus.y == y {
+            if (current_arc_focus.y - y).abs() < f64::EPSILON {
                 if point.x < current_arc_focus.x {
                     current_arc = self.tree.get_left(current_arc).unwrap();
                 } else if point.x > current_arc_focus.x {
@@ -216,10 +216,10 @@ fn compute_breakpoint(point1: Vector2, point2: Vector2, y: f64) -> f64 {
     if a == 0.0 {
         // Special case where we have a linear equation
         -c / b
-    } else if point1.y == y {
+    } else if (point1.y - y).abs() < f64::EPSILON {
         // Special case where point 1 is on the beachline y
         point1.x
-    } else if point2.y == y {
+    } else if (point2.y - y).abs() < f64::EPSILON {
         // Special case where point 2 is on the beachline y
         point2.y
     } else {

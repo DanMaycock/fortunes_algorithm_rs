@@ -254,6 +254,6 @@ impl Voronoi {
             acc = acc + self.get_half_edge_origin_point(edge);
             c += 1;
         }
-        acc * (1.0 / c as f64)
+        acc * (1.0 / f64::from(c))
     }
 }

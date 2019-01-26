@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+#![forbid(unsafe_code)]
 mod beachline;
 mod boundingbox;
 mod event;
@@ -187,9 +189,10 @@ fn is_moving_right(left: Vector2, right: Vector2) -> bool {
 }
 
 fn get_initial_x(left: Vector2, right: Vector2, moving_right: bool) -> f64 {
-    match moving_right {
-        true => left.x,
-        false => right.x,
+    if moving_right {
+        left.x
+    } else {
+        right.x
     }
 }
 
@@ -278,12 +281,9 @@ fn handle_circle_event(
 
 fn delete_event(arc: Index, beachline: &Beachline, event_queue: &mut EventQueue) {
     let weak_event = beachline.get_arc_event(arc);
-    match weak_event.upgrade() {
-        Some(event) => {
-            let event_index = event.borrow().index;
-            event_queue.remove_event(event_index);
-        }
-        None => (),
+    if let Some(event) = weak_event.upgrade() {
+        let event_index = event.borrow().index;
+        event_queue.remove_event(event_index);
     }
 }
 

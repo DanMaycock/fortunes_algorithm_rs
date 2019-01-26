@@ -52,7 +52,7 @@ fn draw_edge<G: Graphics>(from: &Vector2, to: &Vector2, color: [f32; 4], c: Cont
 }
 
 fn in_diagram(point: &Vector2) -> bool {
-    return point.x >= 0.0 && point.x <= 1.0 && point.y >= 0.0 && point.y <= 1.0;
+    point.x >= 0.0 && point.x <= 1.0 && point.y >= 0.0 && point.y <= 1.0
 }
 
 fn draw<G: Graphics>(
