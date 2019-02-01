@@ -15,10 +15,10 @@ const POINT_SIZE: f64 = 1.0;
 const LINE_WIDTH: f64 = 1.0;
 const VIEW_MARGIN: f64 = 10.0;
 
-const DRAW_DELAUNEY_EDGES: bool = false;
+const DRAW_DELAUNEY_EDGES: bool = true;
 const DRAW_DELAUNEY_VERTICES: bool = true;
-const DRAW_VORONOI_EDGES: bool = true;
-const DRAW_VORONOI_VERTICES: bool = true;
+const DRAW_VORONOI_EDGES: bool = false;
+const DRAW_VORONOI_VERTICES: bool = false;
 
 const NUM_POINTS: usize = 10_000;
 
@@ -88,13 +88,14 @@ fn main() {
 
     points = fortunes_algorithm::lloyds_relaxation(&points, 3);
 
-    let diagram = fortunes_algorithm::generate_diagram(&points);
+    let voronoi = fortunes_algorithm::generate_diagram(&points);
 
-    let delauney_vertices = fortunes_algorithm::get_delauney_vertices(&diagram);
-    let delauney_edges = fortunes_algorithm::get_delauney_edges(&diagram);
+    let delauney = fortunes_algorithm::get_delauney(&voronoi);
+    let delauney_vertices = delauney.get_vertices();
+    let delauney_edges = delauney.get_edges();
 
-    let voronoi_vertices = fortunes_algorithm::get_voronoi_vertices(&diagram);
-    let voronoi_edges = fortunes_algorithm::get_voronoi_edges(&diagram);
+    let voronoi_vertices = voronoi.get_vertices();
+    let voronoi_edges = voronoi.get_edges();
 
     let mut window: PistonWindow = WindowSettings::new("Voronoi", [WINDOW_WIDTH, WINDOW_HEIGHT])
         .exit_on_esc(true)

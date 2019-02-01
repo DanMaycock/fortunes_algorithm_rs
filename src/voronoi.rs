@@ -95,14 +95,50 @@ impl Voronoi {
         voronoi
     }
 
+    pub fn get_face_area(&self, index: usize) -> f64 {
+        let face = FaceIndex::new(index);
+        self.outer_edge_iter(face)
+            .fold(0.0, |acc, edge| {
+                let origin = self.get_vertex_point(self.get_half_edge_origin(edge).unwrap());
+                let destination =
+                    self.get_vertex_point(self.get_half_edge_destination(edge).unwrap());
+                acc + origin.x * destination.y - destination.x * origin.y
+            })
+            .abs()
+            * 0.5
+    }
+
     // Returns the index of every face in the diagram
     pub fn get_faces(&self) -> Vec<FaceIndex> {
         self.faces.iter().map(|(index, _)| index).collect()
     }
 
     // Returns the index of every vertex in the diagram
-    pub fn get_vertices(&self) -> Vec<VertexIndex> {
-        self.vertices.iter().map(|(index, _)| index).collect()
+    // pub fn get_vertices(&self) -> Vec<VertexIndex> {
+    //     self.vertices.iter().map(|(index, _)| index).collect()
+    // }
+
+    pub fn get_vertices(&self) -> Vec<Vector2> {
+        self.vertices
+            .iter()
+            .map(|(_, vertex)| vertex.point)
+            .collect()
+    }
+
+    pub fn get_edges(&self) -> Vec<(usize, usize)> {
+        let mut edges = vec![];
+        for face in self.get_faces() {
+            for edge in self.outer_edge_iter(face) {
+                if self.get_half_edge_origin(edge).is_some()
+                    && self.get_half_edge_destination(edge).is_some()
+                {
+                    let origin = self.get_half_edge_origin(edge).unwrap();
+                    let destination = self.get_half_edge_destination(edge).unwrap();
+                    edges.push((origin.into(), destination.into()));
+                }
+            }
+        }
+        edges
     }
 
     pub fn outer_edge_iter(&self, face: FaceIndex) -> EdgeIterator {
@@ -255,5 +291,14 @@ impl Voronoi {
             c += 1;
         }
         acc * (1.0 / f64::from(c))
+    }
+
+    pub fn is_edge_face(&self, face: FaceIndex) -> bool {
+        for edge in self.outer_edge_iter(face) {
+            if self.get_half_edge_twin(edge).is_none() {
+                return true;
+            }
+        }
+        false
     }
 }

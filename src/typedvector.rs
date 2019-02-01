@@ -1,13 +1,14 @@
-use core::iter::FromIterator;
+use core::iter::*;
 use core::slice;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
+#[derive(Default)]
 pub struct TypedVec<T>(Vec<T>);
 
 pub struct TypedIndex<T> {
-    pub index: usize,
+    index: usize,
     phantom: PhantomData<T>,
 }
 
@@ -39,6 +40,10 @@ impl<T> TypedIndex<T> {
             index,
             phantom: PhantomData,
         }
+    }
+
+    pub fn into(self) -> usize {
+        self.index
     }
 }
 
@@ -79,11 +84,34 @@ impl<T> TypedVec<T> {
         self.0.get_mut(index.index)
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn iter(&self) -> Iter<T> {
         Iter {
             index: 0,
             inner: self.0.iter(),
         }
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<T> {
+        IterMut {
+            index: 0,
+            inner: self.0.iter_mut(),
+        }
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        &self.0
+    }
+
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        &mut self.0
     }
 }
 
@@ -94,6 +122,30 @@ pub struct Iter<'a, T: 'a> {
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = (TypedIndex<T>, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.inner.next() {
+            Some(value) => {
+                let idx = TypedIndex {
+                    index: self.index,
+                    phantom: PhantomData,
+                };
+                self.index += 1;
+                Some((idx, value))
+            }
+            None => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct IterMut<'a, T: 'a> {
+    index: usize,
+    inner: slice::IterMut<'a, T>,
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = (TypedIndex<T>, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 mod beachline;
 mod boundingbox;
+pub mod delauney;
 mod event;
 pub mod typedvector;
 pub mod vector2;
@@ -9,6 +10,7 @@ pub mod voronoi;
 
 use crate::beachline::Beachline;
 use crate::boundingbox::BoundingBox;
+use crate::delauney::Delauney;
 use crate::event::{EventQueue, EventType};
 use crate::vector2::{compute_circumcircle_center, Vector2};
 use crate::voronoi::{FaceIndex, VertexIndex, Voronoi};
@@ -58,52 +60,8 @@ pub fn lloyds_relaxation(points: &[Vector2], iterations: usize) -> Vec<Vector2> 
     points
 }
 
-pub fn get_voronoi_vertices(diagram: &Voronoi) -> Vec<Vector2> {
-    diagram
-        .get_vertices()
-        .iter()
-        .map(|&vertex| diagram.get_vertex_point(vertex))
-        .collect()
-}
-
-pub fn get_voronoi_edges(diagram: &Voronoi) -> Vec<(usize, usize)> {
-    let mut edges = vec![];
-    for face in diagram.get_faces() {
-        for edge in diagram.outer_edge_iter(face) {
-            if diagram.get_half_edge_origin(edge).is_some()
-                && diagram.get_half_edge_destination(edge).is_some()
-            {
-                let origin = diagram.get_half_edge_origin(edge).unwrap();
-                let destination = diagram.get_half_edge_destination(edge).unwrap();
-                edges.push((origin.index, destination.index));
-            }
-        }
-    }
-    edges
-}
-
-pub fn get_delauney_vertices(diagram: &Voronoi) -> Vec<Vector2> {
-    diagram
-        .get_faces()
-        .iter()
-        .map(|&face| diagram.get_face_point(face))
-        .collect()
-}
-
-pub fn get_delauney_edges(diagram: &Voronoi) -> Vec<(usize, usize)> {
-    let mut edges = vec![];
-    for face in diagram.get_faces() {
-        for edge in diagram.outer_edge_iter(face) {
-            if diagram.get_half_edge_twin(edge).is_some() {
-                let twin = diagram.get_half_edge_twin(edge).unwrap();
-                let twin_face = diagram.get_half_edge_incident_face(twin);
-                if twin_face.is_some() {
-                    edges.push((face.index, twin_face.unwrap().index));
-                }
-            }
-        }
-    }
-    edges
+pub fn get_delauney(voronoi: &Voronoi) -> Delauney {
+    Delauney::new(voronoi)
 }
 
 fn handle_event(
@@ -332,8 +290,7 @@ fn bound_diagram(voronoi: &mut Voronoi, beachline: &Beachline) {
     let mut right: f64 = 1.0;
     let mut top: f64 = 0.0;
     let mut bottom: f64 = 1.0;
-    for vertex in voronoi.get_vertices() {
-        let point = voronoi.get_vertex_point(vertex);
+    for point in voronoi.get_vertices() {
         left = left.min(point.x);
         right = right.max(point.x);
         top = top.min(point.y);

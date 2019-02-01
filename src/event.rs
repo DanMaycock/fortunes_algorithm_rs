@@ -86,7 +86,7 @@ impl EventQueue {
             self.sift_down(0);
             match Rc::try_unwrap(popped_event) {
                 Ok(event) => Some(event.into_inner()),
-                Err(_) => panic!("Could not unwrap event Rc, another strong reference exists"),
+                Err(_rc) => panic!("Could not unwrap event Rc, another strong reference exists"),
             }
         }
     }
