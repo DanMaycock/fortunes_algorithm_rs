@@ -95,8 +95,7 @@ impl Voronoi {
         voronoi
     }
 
-    pub fn get_face_area(&self, index: usize) -> f64 {
-        let face = FaceIndex::new(index);
+    pub fn get_face_area(&self, face: FaceIndex) -> f64 {
         self.outer_edge_iter(face)
             .fold(0.0, |acc, edge| {
                 let origin = self.get_vertex_point(self.get_half_edge_origin(edge).unwrap());

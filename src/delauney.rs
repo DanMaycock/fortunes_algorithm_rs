@@ -1,5 +1,35 @@
-use crate::vector2::Vector2;
-use crate::voronoi::{FaceIndex, HalfEdgeIndex, Voronoi};
+use super::*;
+use petgraph::{graph::node_index, Graph};
+
+type DelauneyGraph = Graph<DelauneyVertex, ()>;
+
+pub struct DelauneyVertex {
+    position: Vector2,
+    is_edge: bool,
+    area: f64,
+}
+
+impl DelauneyVertex {
+    fn new(position: Vector2, is_edge: bool, area: f64) -> Self {
+        DelauneyVertex {
+            position,
+            is_edge,
+            area,
+        }
+    }
+
+    pub fn position(&self) -> Vector2 {
+        self.position
+    }
+
+    pub fn is_edge(&self) -> bool {
+        self.is_edge
+    }
+
+    pub fn area(&self) -> f64 {
+        self.area
+    }
+}
 
 pub struct AdjacentVertexIterator<'a> {
     voronoi: &'a Voronoi,
@@ -37,53 +67,31 @@ impl<'a> Iterator for AdjacentVertexIterator<'a> {
     }
 }
 
-/**
- * Wrapper round a voronoi diagram that provides methods for accessing the dual delauney graph.
- */
-pub struct Delauney<'a> {
-    voronoi: &'a Voronoi,
+fn get_adjacent_vertex_iterator(voronoi: &Voronoi, index: FaceIndex) -> AdjacentVertexIterator {
+    let start_edge = voronoi.get_face_outer_component(index).unwrap();
+    AdjacentVertexIterator {
+        voronoi: voronoi,
+        start_edge,
+        current_edge: None,
+    }
 }
 
-impl<'a> Delauney<'a> {
-    pub fn new(voronoi: &'a Voronoi) -> Self {
-        Delauney { voronoi }
+pub fn get_delauney_graph(voronoi: &Voronoi) -> DelauneyGraph {
+    let mut graph = Graph::new();
+
+    for face in voronoi.get_faces() {
+        graph.add_node(DelauneyVertex::new(
+            voronoi.get_face_point(face),
+            voronoi.is_edge_face(face),
+            voronoi.get_face_area(face),
+        ));
     }
 
-    pub fn get_vertices(&self) -> Vec<Vector2> {
-        self.voronoi
-            .get_faces()
-            .iter()
-            .map(|&face| self.voronoi.get_face_point(face))
-            .collect()
-    }
-
-    pub fn get_edges(&self) -> Vec<(usize, usize)> {
-        let mut edges = vec![];
-        for (index, _) in self.get_vertices().iter().enumerate() {
-            for adjacent_index in self.get_adjacent_vertex_iterator(index) {
-                edges.push((index, adjacent_index));
-            }
-        }
-        edges
-    }
-
-    pub fn get_vertex_point(&self, index: usize) -> Vector2 {
-        self.voronoi.get_face_point(FaceIndex::new(index))
-    }
-
-    pub fn get_adjacent_vertex_iterator(&self, index: usize) -> AdjacentVertexIterator {
-        let start_edge = self
-            .voronoi
-            .get_face_outer_component(FaceIndex::new(index))
-            .unwrap();
-        AdjacentVertexIterator {
-            voronoi: self.voronoi,
-            start_edge,
-            current_edge: None,
+    for &face in voronoi.get_faces().iter() {
+        for adjacent_index in get_adjacent_vertex_iterator(voronoi, face) {
+            graph.add_edge(node_index(face.into()), node_index(adjacent_index), ());
         }
     }
 
-    pub fn is_edge_vertex(&self, index: usize) -> bool {
-        self.voronoi.is_edge_face(FaceIndex::new(index))
-    }
+    graph
 }

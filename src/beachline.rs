@@ -1,12 +1,8 @@
-use crate::boundingbox::BoundingBox;
-use crate::event::Event;
-use crate::vector2::Vector2;
-use crate::voronoi::{FaceIndex, HalfEdgeIndex, Voronoi};
+use super::*;
 use binary_search_tree::Tree;
 use generational_arena::Index;
-use std::cell::RefCell;
+use priority_queue::QueueIndex;
 use std::f64;
-use std::rc::Weak;
 
 #[derive(Debug, Clone)]
 pub struct Arc {
@@ -14,7 +10,7 @@ pub struct Arc {
     left_half_edge: Option<HalfEdgeIndex>,
     right_half_edge: Option<HalfEdgeIndex>,
 
-    event: Weak<RefCell<Event>>,
+    event_index: QueueIndex,
 }
 
 impl Arc {
@@ -24,7 +20,7 @@ impl Arc {
             left_half_edge: None,
             right_half_edge: None,
 
-            event: Weak::new(),
+            event_index: QueueIndex::new(),
         }
     }
 }
@@ -194,14 +190,14 @@ impl Beachline {
         arc.right_half_edge
     }
 
-    pub fn set_arc_event(&mut self, node: Index, event: Weak<RefCell<Event>>) {
+    pub fn set_arc_event(&mut self, node: Index, event: QueueIndex) {
         let arc = self.tree.get_mut_contents(node);
-        arc.event = event;
+        arc.event_index = event;
     }
 
-    pub fn get_arc_event(&self, node: Index) -> Weak<RefCell<Event>> {
+    pub fn get_arc_event(&self, node: Index) -> QueueIndex {
         let arc = self.tree.get_contents(node);
-        arc.event.clone()
+        arc.event_index.clone()
     }
 }
 
@@ -234,19 +230,20 @@ mod tests {
 
     #[test]
     fn compute_breakpoint_test() {
-        assert_eq!(
-            compute_breakpoint(Vector2::new(0.4, 0.5), Vector2::new(0.6, 0.5), 0.8),
-            0.5
+        assert!(
+            (compute_breakpoint(Vector2::new(0.4, 0.5), Vector2::new(0.6, 0.5), 0.8) - 0.5).abs()
+                < f64::EPSILON
         );
 
-        assert_eq!(
-            compute_breakpoint(Vector2::new(0.25, 0.5), Vector2::new(0.5, 0.25), 0.75),
-            0.5
+        assert!(
+            (compute_breakpoint(Vector2::new(0.25, 0.5), Vector2::new(0.5, 0.25), 0.75) - 0.5)
+                .abs()
+                < f64::EPSILON
         );
 
-        assert_eq!(
-            compute_breakpoint(Vector2::new(0.5, 0.2), Vector2::new(0.6, 0.5), 0.5),
-            0.5
+        assert!(
+            (compute_breakpoint(Vector2::new(0.5, 0.2), Vector2::new(0.6, 0.5), 0.5) - 0.5).abs()
+                < f64::EPSILON
         );
     }
 }

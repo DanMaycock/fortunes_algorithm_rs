@@ -1,3 +1,4 @@
+use fortunes_algorithm::delauney::get_delauney_graph;
 use fortunes_algorithm::vector2::Vector2;
 use piston_window::*;
 use rand::Rng;
@@ -11,8 +12,8 @@ const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
 const BLUE: [f32; 4] = [0.3, 0.3, 1.0, 1.0];
 const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
-const POINT_SIZE: f64 = 1.0;
-const LINE_WIDTH: f64 = 1.0;
+const POINT_SIZE: f64 = 2.0;
+const LINE_WIDTH: f64 = 0.5;
 const VIEW_MARGIN: f64 = 10.0;
 
 const DRAW_DELAUNEY_EDGES: bool = true;
@@ -29,7 +30,7 @@ fn diagram_to_canvas(point: &Vector2) -> Vector2 {
     )
 }
 
-fn draw_point<G: Graphics>(point: &Vector2, color: [f32; 4], c: Context, g: &mut G) {
+fn draw_point<G: Graphics>(point: &Vector2, pen: Rectangle, c: Context, g: &mut G) {
     let point = diagram_to_canvas(point);
     let rectangle = [
         point.x - POINT_SIZE / 2.0,
@@ -37,18 +38,13 @@ fn draw_point<G: Graphics>(point: &Vector2, color: [f32; 4], c: Context, g: &mut
         POINT_SIZE,
         POINT_SIZE,
     ];
-    Rectangle::new(color).draw(rectangle, &c.draw_state, c.transform, g);
+    pen.draw(rectangle, &c.draw_state, c.transform, g);
 }
 
-fn draw_edge<G: Graphics>(from: &Vector2, to: &Vector2, color: [f32; 4], c: Context, g: &mut G) {
+fn draw_edge<G: Graphics>(from: &Vector2, to: &Vector2, pen: Line, c: Context, g: &mut G) {
     let from = diagram_to_canvas(from);
     let to = diagram_to_canvas(to);
-    Line::new(color, LINE_WIDTH / 2.0).draw(
-        [from.x, from.y, to.x, to.y],
-        &c.draw_state,
-        c.transform,
-        g,
-    );
+    pen.draw([from.x, from.y, to.x, to.y], &c.draw_state, c.transform, g);
 }
 
 fn in_diagram(point: &Vector2) -> bool {
@@ -65,16 +61,18 @@ fn draw<G: Graphics>(
     c: Context,
     g: &mut G,
 ) {
-    if draw_vertices {
-        for vertex in vertices {
-            if in_diagram(vertex) {
-                draw_point(vertex, vertex_color, c, g);
-            }
-        }
-    }
     if draw_edges {
         for edge in edges {
-            draw_edge(&vertices[edge.0], &vertices[edge.1], edge_color, c, g);
+            let pen = Line::new(edge_color, LINE_WIDTH / 2.0);
+            draw_edge(&vertices[edge.0], &vertices[edge.1], pen, c, g);
+        }
+    }
+    if draw_vertices {
+        for vertex in vertices {
+            let pen = Rectangle::new(vertex_color);
+            if in_diagram(vertex) {
+                draw_point(vertex, pen, c, g);
+            }
         }
     }
 }
@@ -86,13 +84,22 @@ fn main() {
         points.push(Vector2::new(rng.gen(), rng.gen()));
     }
 
-    points = fortunes_algorithm::lloyds_relaxation(&points, 3);
+    points = fortunes_algorithm::lloyds_relaxation(&points, 5);
 
     let voronoi = fortunes_algorithm::generate_diagram(&points);
 
-    let delauney = fortunes_algorithm::get_delauney(&voronoi);
-    let delauney_vertices = delauney.get_vertices();
-    let delauney_edges = delauney.get_edges();
+    let delauney = get_delauney_graph(&voronoi);
+    let delauney_vertices: Vec<Vector2> = delauney
+        .node_indices()
+        .map(|node| delauney.node_weight(node).unwrap().position())
+        .collect();
+    let delauney_edges: Vec<(usize, usize)> = delauney
+        .edge_indices()
+        .map(|edge| {
+            let (from, to) = delauney.edge_endpoints(edge).unwrap();
+            (from.index(), to.index())
+        })
+        .collect();
 
     let voronoi_vertices = voronoi.get_vertices();
     let voronoi_edges = voronoi.get_edges();
