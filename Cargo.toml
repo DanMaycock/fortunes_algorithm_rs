@@ -5,11 +5,11 @@ authors = ["Daniel Maycock <DanMaycock13@googlemail.com>"]
 edition = "2018"
 
 [dependencies]
-binary_search_tree = {path = "C:/Users/Dan/Documents/Rust/binary_search_tree"}
+binary_search_tree = {git = "https://github.com/DanMaycock/binary_search_tree_rs.git"}
 generational-arena = "0.2.0"
 rand = "0.6.4"
 log = "0.4.6"
 piston_window = "0.87.0"
 petgraph = "0.4.13"
-priority_queue = {path = "C:/Users/Dan/Documents/Rust/priority_queue"}
+priority_queue = {git = "https://github.com/DanMaycock/priority_queue_rs.git"}
 
