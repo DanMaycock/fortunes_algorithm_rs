@@ -1,14 +1,18 @@
 use super::*;
 use priority_queue::PriorityQueue;
 
-pub fn build_voronoi(points: &[Vector2]) -> Voronoi {
+pub fn build_voronoi(points: &[Vector2]) -> Diagram {
     let mut event_queue = PriorityQueue::new();
 
-    let mut voronoi = Voronoi::new(points);
+    let mut voronoi = Diagram::new();
+
+    for &point in points {
+        voronoi.add_face(point);
+    }
 
     let mut beachline = Beachline::new();
 
-    for &face in voronoi.get_faces().iter() {
+    for &face in voronoi.get_face_indices().iter() {
         event_queue.push(Event::site_event(voronoi.get_face_point(face).y, face));
     }
 
@@ -34,7 +38,7 @@ pub fn build_voronoi(points: &[Vector2]) -> Voronoi {
 
 fn handle_event(
     event_type: &EventType,
-    voronoi: &mut Voronoi,
+    voronoi: &mut Diagram,
     beachline: &mut Beachline,
     current_y: f64,
     event_queue: &mut PriorityQueue<Event>,
@@ -51,7 +55,7 @@ fn handle_event(
 
 fn handle_site_event(
     face: FaceIndex,
-    voronoi: &mut Voronoi,
+    voronoi: &mut Diagram,
     beachline: &mut Beachline,
     current_y: f64,
     event_queue: &mut PriorityQueue<Event>,
@@ -126,7 +130,7 @@ fn add_event(
     left_arc: Index,
     middle_arc: Index,
     right_arc: Index,
-    voronoi: &Voronoi,
+    voronoi: &Diagram,
     beachline: &mut Beachline,
     current_y: f64,
     event_queue: &mut PriorityQueue<Event>,
@@ -160,13 +164,13 @@ fn add_event(
 fn handle_circle_event(
     point: Vector2,
     arc: Index,
-    voronoi: &mut Voronoi,
+    voronoi: &mut Diagram,
     beachline: &mut Beachline,
     y: f64,
     event_queue: &mut PriorityQueue<Event>,
 ) {
     // 1 Add vertex
-    let vertex = voronoi.create_vertex(point);
+    let vertex = voronoi.add_vertex(point);
 
     // 2 Delete all events with this arc
     let left_arc = beachline.tree.get_prev(arc).unwrap();
@@ -209,7 +213,7 @@ fn delete_event(arc: Index, beachline: &Beachline, event_queue: &mut PriorityQue
     event_queue.remove(beachline.get_arc_event(arc));
 }
 
-fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Voronoi, beachline: &mut Beachline) {
+fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Diagram, beachline: &mut Beachline) {
     let prev = beachline.tree.get_prev(arc).unwrap();
     let next = beachline.tree.get_next(arc).unwrap();
     let left_half_edge = beachline.get_left_half_edge(arc).unwrap();
@@ -248,13 +252,13 @@ fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Voronoi, beachline:
     beachline.tree.delete_node(arc);
 }
 
-fn bound_diagram(voronoi: &mut Voronoi, beachline: &Beachline) {
+fn bound_diagram(voronoi: &mut Diagram, beachline: &Beachline) {
     // Determine the bounds
     let mut left: f64 = 0.0;
     let mut right: f64 = 1.0;
     let mut top: f64 = 0.0;
     let mut bottom: f64 = 1.0;
-    for point in voronoi.get_vertices() {
+    for point in voronoi.get_vertex_points() {
         left = left.min(point.x);
         right = right.max(point.x);
         top = top.min(point.y);

@@ -101,8 +101,8 @@ fn main() {
         })
         .collect();
 
-    let voronoi_vertices = voronoi.get_vertices();
-    let voronoi_edges = voronoi.get_edges();
+    let voronoi_vertices = voronoi.get_vertex_points();
+    let voronoi_edges = voronoi.get_edge_vertices();
 
     let mut window: PistonWindow = WindowSettings::new("Voronoi", [WINDOW_WIDTH, WINDOW_HEIGHT])
         .exit_on_esc(true)

@@ -1,5 +1,5 @@
+use super::*;
 use crate::vector2::Vector2;
-use crate::voronoi::{HalfEdgeIndex, Voronoi};
 use std::f64;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -153,10 +153,10 @@ impl BoundingBox {
         intersections
     }
 
-    pub fn intersect_diagram(&self, voronoi: &mut Voronoi) {
+    pub fn intersect_diagram(&self, voronoi: &mut Diagram) {
         let mut vertices_to_remove = vec![];
         let mut processed_halfedges = vec![];
-        for face in voronoi.get_faces() {
+        for face in voronoi.get_face_indices() {
             let start_halfedge = voronoi.get_face_outer_component(face).unwrap();
             let mut outgoing_halfedge: Option<HalfEdgeIndex> = None;
             let mut outgoing_side = Side::None;
@@ -206,8 +206,8 @@ impl BoundingBox {
                                     voronoi.get_half_edge_origin(halfedge_twin.unwrap()),
                                 );
                             } else {
-                                let origin = voronoi.create_vertex(intersections[0].0);
-                                let destination = voronoi.create_vertex(intersections[1].0);
+                                let origin = voronoi.add_vertex(intersections[0].0);
+                                let destination = voronoi.add_vertex(intersections[1].0);
                                 voronoi.set_half_edge_origin(halfedge, Some(origin));
                                 voronoi.set_half_edge_destination(halfedge, Some(destination));
                             }
@@ -238,7 +238,7 @@ impl BoundingBox {
                                     voronoi.get_half_edge_origin(halfedge_twin.unwrap()),
                                 );
                             } else {
-                                let destination = voronoi.create_vertex(intersections[0].0);
+                                let destination = voronoi.add_vertex(intersections[0].0);
                                 voronoi.set_half_edge_destination(halfedge, Some(destination));
                             }
                             if incoming_halfedge.is_some() {
@@ -269,7 +269,7 @@ impl BoundingBox {
                                     voronoi.get_half_edge_destination(halfedge_twin.unwrap()),
                                 );
                             } else {
-                                let origin = voronoi.create_vertex(intersections[0].0);
+                                let origin = voronoi.add_vertex(intersections[0].0);
                                 voronoi.set_half_edge_origin(halfedge, Some(origin));
                             }
                             if outgoing_halfedge.is_some() {
@@ -301,7 +301,7 @@ impl BoundingBox {
 
     pub fn link_vertices(
         &self,
-        voronoi: &mut Voronoi,
+        voronoi: &mut Diagram,
         start_edge: HalfEdgeIndex,
         start_side: Side,
         end_edge: HalfEdgeIndex,
@@ -311,15 +311,15 @@ impl BoundingBox {
         let mut side = start_side;
         let incident_face = voronoi.get_half_edge_incident_face(edge).unwrap();
         while side != end_side {
-            let new_edge = voronoi.create_half_edge(incident_face);
+            let new_edge = voronoi.add_half_edge(incident_face);
             voronoi.link_half_edges(edge, new_edge);
             voronoi.set_half_edge_origin(new_edge, voronoi.get_half_edge_destination(edge));
-            let destination = voronoi.create_vertex(self.get_corner(side, side.next()));
+            let destination = voronoi.add_vertex(self.get_corner(side, side.next()));
             voronoi.set_half_edge_destination(new_edge, Some(destination));
             side = side.next();
             edge = new_edge;
         }
-        let new_edge = voronoi.create_half_edge(incident_face);
+        let new_edge = voronoi.add_half_edge(incident_face);
         voronoi.link_half_edges(edge, new_edge);
         voronoi.link_half_edges(new_edge, end_edge);
         voronoi.set_half_edge_origin(new_edge, voronoi.get_half_edge_destination(edge));

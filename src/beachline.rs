@@ -38,7 +38,7 @@ impl Beachline {
         self.tree.create_root(Arc::new(face))
     }
 
-    pub fn locate_arc_above(&self, point: Vector2, y: f64, voronoi: &Voronoi) -> Index {
+    pub fn locate_arc_above(&self, point: Vector2, y: f64, voronoi: &Diagram) -> Index {
         let mut current_arc = self.tree.root.unwrap();
         let mut found = false;
         while !found {
@@ -106,7 +106,7 @@ impl Beachline {
         self.set_right_half_edge(right_arc, right_half_edge);
     }
 
-    pub fn complete_edges(&self, bbox: &BoundingBox, voronoi: &mut Voronoi) {
+    pub fn complete_edges(&self, bbox: &BoundingBox, voronoi: &mut Diagram) {
         let mut departing_edges = vec![];
         let mut arriving_edges = vec![];
         if self.tree.has_root() {
@@ -123,7 +123,7 @@ impl Beachline {
                 let origin = (left_point + right_point) * 0.5;
                 let intersection = bbox.get_intersection(&origin, &direction);
 
-                let vertex = voronoi.create_vertex(intersection.0);
+                let vertex = voronoi.add_vertex(intersection.0);
 
                 let arriving_edge = self.get_right_half_edge(left_node.unwrap()).unwrap();
                 voronoi.set_half_edge_origin(arriving_edge, Some(vertex));

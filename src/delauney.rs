@@ -32,7 +32,7 @@ impl DelauneyVertex {
 }
 
 pub struct AdjacentVertexIterator<'a> {
-    voronoi: &'a Voronoi,
+    voronoi: &'a Diagram,
     start_edge: HalfEdgeIndex,
     current_edge: Option<HalfEdgeIndex>,
 }
@@ -67,7 +67,7 @@ impl<'a> Iterator for AdjacentVertexIterator<'a> {
     }
 }
 
-fn get_adjacent_vertex_iterator(voronoi: &Voronoi, index: FaceIndex) -> AdjacentVertexIterator {
+fn get_adjacent_vertex_iterator(voronoi: &Diagram, index: FaceIndex) -> AdjacentVertexIterator {
     let start_edge = voronoi.get_face_outer_component(index).unwrap();
     AdjacentVertexIterator {
         voronoi: voronoi,
@@ -76,18 +76,18 @@ fn get_adjacent_vertex_iterator(voronoi: &Voronoi, index: FaceIndex) -> Adjacent
     }
 }
 
-pub fn get_delauney_graph(voronoi: &Voronoi) -> DelauneyGraph {
+pub fn get_delauney_graph(voronoi: &Diagram) -> DelauneyGraph {
     let mut graph = Graph::new();
 
-    for face in voronoi.get_faces() {
+    for face in voronoi.get_face_indices() {
         graph.add_node(DelauneyVertex::new(
             voronoi.get_face_point(face),
-            voronoi.is_edge_face(face),
+            voronoi.is_face_on_border(face),
             voronoi.get_face_area(face),
         ));
     }
 
-    for &face in voronoi.get_faces().iter() {
+    for &face in voronoi.get_face_indices().iter() {
         for adjacent_index in get_adjacent_vertex_iterator(voronoi, face) {
             graph.add_edge(node_index(face.into()), node_index(adjacent_index), ());
         }
