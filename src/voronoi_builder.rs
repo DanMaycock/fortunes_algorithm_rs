@@ -4,7 +4,7 @@ use priority_queue::PriorityQueue;
 pub fn build_voronoi(points: &[Vector2]) -> Diagram {
     let mut event_queue = PriorityQueue::new();
 
-    let mut voronoi = Diagram::new();
+    let mut voronoi = Diagram::default();
 
     for &point in points {
         voronoi.add_face(point);
@@ -54,7 +54,7 @@ fn handle_event(
 }
 
 fn handle_site_event(
-    face: FaceIndex,
+    face: FaceKey,
     voronoi: &mut Diagram,
     beachline: &mut Beachline,
     current_y: f64,
@@ -127,9 +127,9 @@ fn get_initial_x(left: Vector2, right: Vector2, moving_right: bool) -> f64 {
 }
 
 fn add_event(
-    left_arc: Index,
-    middle_arc: Index,
-    right_arc: Index,
+    left_arc: NodeKey,
+    middle_arc: NodeKey,
+    right_arc: NodeKey,
     voronoi: &Diagram,
     beachline: &mut Beachline,
     current_y: f64,
@@ -163,7 +163,7 @@ fn add_event(
 
 fn handle_circle_event(
     point: Vector2,
-    arc: Index,
+    arc: NodeKey,
     voronoi: &mut Diagram,
     beachline: &mut Beachline,
     y: f64,
@@ -209,11 +209,11 @@ fn handle_circle_event(
     }
 }
 
-fn delete_event(arc: Index, beachline: &Beachline, event_queue: &mut PriorityQueue<Event>) {
+fn delete_event(arc: NodeKey, beachline: &Beachline, event_queue: &mut PriorityQueue<Event>) {
     event_queue.remove(beachline.get_arc_event(arc));
 }
 
-fn remove_arc(arc: Index, vertex: VertexIndex, voronoi: &mut Diagram, beachline: &mut Beachline) {
+fn remove_arc(arc: NodeKey, vertex: VertexKey, voronoi: &mut Diagram, beachline: &mut Beachline) {
     let prev = beachline.tree.get_prev(arc).unwrap();
     let next = beachline.tree.get_next(arc).unwrap();
     let left_half_edge = beachline.get_left_half_edge(arc).unwrap();

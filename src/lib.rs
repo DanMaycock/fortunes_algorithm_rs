@@ -31,16 +31,15 @@ mod boundingbox;
 pub mod delauney;
 pub mod diagram;
 mod event;
-pub mod typedvector;
 pub mod vector2;
 mod voronoi_builder;
 
 use beachline::Beachline;
+use binary_search_tree::NodeKey;
 use boundingbox::BoundingBox;
-use diagram::{Diagram, FaceIndex, HalfEdgeIndex, VertexIndex};
+use diagram::{Diagram, FaceKey, HalfEdgeKey, VertexKey};
 use event::Event;
 use event::EventType;
-use generational_arena::Index;
 use std::f64;
 use vector2::{compute_circumcircle_center, Vector2};
 

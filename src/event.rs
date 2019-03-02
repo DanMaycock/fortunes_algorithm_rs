@@ -1,11 +1,10 @@
 use super::*;
-use generational_arena::Index;
 use std::cmp::Ordering;
 
 #[derive(Debug)]
 pub enum EventType {
-    SiteEvent { face: FaceIndex },
-    CircleEvent { point: Vector2, arc: Index },
+    SiteEvent { face: FaceKey },
+    CircleEvent { point: Vector2, arc: NodeKey },
 }
 
 #[derive(Debug)]
@@ -27,14 +26,14 @@ impl PartialEq for Event {
 }
 
 impl Event {
-    pub fn site_event(y: f64, face: FaceIndex) -> Self {
+    pub fn site_event(y: f64, face: FaceKey) -> Self {
         Event {
             y,
             event_type: EventType::SiteEvent { face },
         }
     }
 
-    pub fn circle_event(y: f64, point: Vector2, arc: Index) -> Self {
+    pub fn circle_event(y: f64, point: Vector2, arc: NodeKey) -> Self {
         Event {
             y,
             event_type: EventType::CircleEvent { point, arc },

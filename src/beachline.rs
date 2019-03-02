@@ -1,20 +1,19 @@
 use super::*;
-use binary_search_tree::Tree;
-use generational_arena::Index;
+use binary_search_tree::{Tree, NodeKey};
 use priority_queue::QueueIndex;
 use std::f64;
 
 #[derive(Debug, Clone)]
 pub struct Arc {
-    face: Option<FaceIndex>,
-    left_half_edge: Option<HalfEdgeIndex>,
-    right_half_edge: Option<HalfEdgeIndex>,
+    face: Option<FaceKey>,
+    left_half_edge: Option<HalfEdgeKey>,
+    right_half_edge: Option<HalfEdgeKey>,
 
     event_index: QueueIndex,
 }
 
 impl Arc {
-    fn new(face: FaceIndex) -> Self {
+    fn new(face: FaceKey) -> Self {
         Arc {
             face: Some(face),
             left_half_edge: None,
@@ -34,11 +33,11 @@ impl Beachline {
         Beachline { tree: Tree::new() }
     }
 
-    pub fn create_root(&mut self, face: FaceIndex) -> Index {
+    pub fn create_root(&mut self, face: FaceKey) -> NodeKey {
         self.tree.create_root(Arc::new(face))
     }
 
-    pub fn locate_arc_above(&self, point: Vector2, y: f64, voronoi: &Diagram) -> Index {
+    pub fn locate_arc_above(&self, point: Vector2, y: f64, voronoi: &Diagram) -> NodeKey {
         let mut current_arc = self.tree.root.unwrap();
         let mut found = false;
         while !found {
@@ -90,7 +89,7 @@ impl Beachline {
         current_arc
     }
 
-    pub fn break_arc(&mut self, node: Index, new_face: FaceIndex) {
+    pub fn break_arc(&mut self, node: NodeKey, new_face: FaceKey) {
         let left_half_edge = self.get_left_half_edge(node);
         let right_half_edge = self.get_right_half_edge(node);
         let arc_face = self.get_arc_face(node).unwrap();
@@ -165,37 +164,37 @@ impl Beachline {
         }
     }
 
-    pub fn get_arc_face(&self, node: Index) -> Option<FaceIndex> {
+    pub fn get_arc_face(&self, node: NodeKey) -> Option<FaceKey> {
         let arc = self.tree.get_contents(node);
         arc.face
     }
 
-    pub fn set_left_half_edge(&mut self, node: Index, left_half_edge: Option<HalfEdgeIndex>) {
+    pub fn set_left_half_edge(&mut self, node: NodeKey, left_half_edge: Option<HalfEdgeKey>) {
         let arc = self.tree.get_mut_contents(node);
         arc.left_half_edge = left_half_edge;
     }
 
-    pub fn get_left_half_edge(&self, node: Index) -> Option<HalfEdgeIndex> {
+    pub fn get_left_half_edge(&self, node: NodeKey) -> Option<HalfEdgeKey> {
         let arc = self.tree.get_contents(node);
         arc.left_half_edge
     }
 
-    pub fn set_right_half_edge(&mut self, node: Index, right_half_edge: Option<HalfEdgeIndex>) {
+    pub fn set_right_half_edge(&mut self, node: NodeKey, right_half_edge: Option<HalfEdgeKey>) {
         let arc = self.tree.get_mut_contents(node);
         arc.right_half_edge = right_half_edge;
     }
 
-    pub fn get_right_half_edge(&self, node: Index) -> Option<HalfEdgeIndex> {
+    pub fn get_right_half_edge(&self, node: NodeKey) -> Option<HalfEdgeKey> {
         let arc = self.tree.get_contents(node);
         arc.right_half_edge
     }
 
-    pub fn set_arc_event(&mut self, node: Index, event: QueueIndex) {
+    pub fn set_arc_event(&mut self, node: NodeKey, event: QueueIndex) {
         let arc = self.tree.get_mut_contents(node);
         arc.event_index = event;
     }
 
-    pub fn get_arc_event(&self, node: Index) -> QueueIndex {
+    pub fn get_arc_event(&self, node: NodeKey) -> QueueIndex {
         let arc = self.tree.get_contents(node);
         arc.event_index.clone()
     }

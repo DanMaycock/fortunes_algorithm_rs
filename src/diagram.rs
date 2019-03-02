@@ -1,14 +1,15 @@
-use crate::typedvector::{TypedIndex, TypedVec};
-use crate::vector2::Vector2;
+use super::*;
+use slotmap::{new_key_type, SlotMap};
 
-pub type VertexIndex = TypedIndex<Vertex>;
-pub type HalfEdgeIndex = TypedIndex<HalfEdge>;
-pub type FaceIndex = TypedIndex<Face>;
+new_key_type! { pub struct VertexKey; }
+new_key_type! { pub struct HalfEdgeKey; }
+new_key_type! { pub struct FaceKey; }
 
 /// A Vertex of the diagram.
 ///
 /// Consists only of the points at which the vertex is located.
-pub struct Vertex {
+#[derive(Clone, Copy)]
+struct Vertex {
     point: Vector2,
 }
 
@@ -29,18 +30,18 @@ impl Vertex {
 /// immediately proceed and follow this half edge around the same incident face. The previous half
 /// edge's destination is the origin of this one and the next half edge's origin is the destination
 /// of this one.
-#[derive(Debug)]
-pub struct HalfEdge {
-    origin: Option<VertexIndex>,
-    destination: Option<VertexIndex>,
-    incident_face: Option<FaceIndex>,
-    twin: Option<HalfEdgeIndex>,
-    prev: Option<HalfEdgeIndex>,
-    next: Option<HalfEdgeIndex>,
+#[derive(Clone, Copy)]
+struct HalfEdge {
+    origin: Option<VertexKey>,
+    destination: Option<VertexKey>,
+    incident_face: Option<FaceKey>,
+    twin: Option<HalfEdgeKey>,
+    prev: Option<HalfEdgeKey>,
+    next: Option<HalfEdgeKey>,
 }
 
 impl HalfEdge {
-    fn new(incident_face: FaceIndex) -> Self {
+    fn new(incident_face: FaceKey) -> Self {
         HalfEdge {
             origin: None,
             destination: None,
@@ -57,9 +58,10 @@ impl HalfEdge {
 /// Consists of a point within the face, for a voronoi diagram this is the point that the region is
 /// all the part of the plane closer to take point than any other. It all holds the index of a
 /// single bordering half edge.
-pub struct Face {
+#[derive(Clone, Copy)]
+struct Face {
     point: Vector2,
-    outer_component: Option<HalfEdgeIndex>,
+    outer_component: Option<HalfEdgeKey>,
 }
 
 impl Face {
@@ -75,14 +77,14 @@ impl Face {
 /// single polygon in the diagram.
 pub struct EdgeIterator<'a> {
     diagram: &'a Diagram,
-    start_edge: HalfEdgeIndex,
-    current_edge: Option<HalfEdgeIndex>,
+    start_edge: HalfEdgeKey,
+    current_edge: Option<HalfEdgeKey>,
 }
 
 impl<'a> Iterator for EdgeIterator<'a> {
-    type Item = HalfEdgeIndex;
+    type Item = HalfEdgeKey;
 
-    fn next(&mut self) -> Option<HalfEdgeIndex> {
+    fn next(&mut self) -> Option<HalfEdgeKey> {
         if self.current_edge.is_none() {
             self.current_edge = Some(self.start_edge);
         } else {
@@ -98,19 +100,20 @@ impl<'a> Iterator for EdgeIterator<'a> {
 /// A diagram represented by a doubly connected edge list.
 /// At it's most basic this is a struct that contains the Faces, Vertices and Half Edges that define
 /// the diagram and the methods to manipulate and access them.
+#[derive(Default)]
 pub struct Diagram {
-    faces: TypedVec<Face>,
-    vertices: TypedVec<Vertex>,
-    half_edges: TypedVec<HalfEdge>,
+    faces: SlotMap<FaceKey, Face>,
+    vertices: SlotMap<VertexKey, Vertex>,
+    half_edges: SlotMap<HalfEdgeKey, HalfEdge>,
 }
 
 impl Diagram {
     /// Constructs a new empty diagram
     pub fn new() -> Self {
         Diagram {
-            faces: TypedVec::new(),
-            vertices: TypedVec::new(),
-            half_edges: TypedVec::new(),
+            faces: SlotMap::with_key(),
+            vertices: SlotMap::with_key(),
+            half_edges: SlotMap::with_key(),
         }
     }
 
@@ -122,7 +125,7 @@ impl Diagram {
     }
 
     /// Returns the index of every face in the diagram
-    pub fn get_face_indices(&self) -> Vec<FaceIndex> {
+    pub fn get_face_indices(&self) -> Vec<FaceKey> {
         self.faces.iter().map(|(index, _)| index).collect()
     }
 
@@ -136,7 +139,7 @@ impl Diagram {
 
     /// Returns a vector with the index of the origin and destination vertices for every edge in
     /// the diagram
-    pub fn get_edge_vertices(&self) -> Vec<(usize, usize)> {
+    pub fn get_edge_vertices(&self) -> Vec<(VertexKey, VertexKey)> {
         let mut edges = vec![];
         for face in self.get_face_indices() {
             for edge in self.outer_edge_iter(face) {
@@ -145,7 +148,27 @@ impl Diagram {
                 {
                     let origin = self.get_half_edge_origin(edge).unwrap();
                     let destination = self.get_half_edge_destination(edge).unwrap();
-                    edges.push((origin.into(), destination.into()));
+                    edges.push((origin, destination));
+                }
+            }
+        }
+        edges
+    }
+
+    /// Returns a vector with the start and end points of every half edge in the diagram
+    pub fn get_edge_endpoints(&self) -> Vec<(Vector2, Vector2)> {
+        let mut edges = vec![];
+        for face in self.get_face_indices() {
+            for edge in self.outer_edge_iter(face) {
+                if self.get_half_edge_origin(edge).is_some()
+                    && self.get_half_edge_destination(edge).is_some()
+                {
+                    let origin = self.get_half_edge_origin(edge).unwrap();
+                    let destination = self.get_half_edge_destination(edge).unwrap();
+                    edges.push((
+                        self.get_vertex_point(origin),
+                        self.get_vertex_point(destination),
+                    ));
                 }
             }
         }
@@ -161,7 +184,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the face index is invalid.
-    pub fn outer_edge_iter(&self, face: FaceIndex) -> EdgeIterator {
+    pub fn outer_edge_iter(&self, face: FaceKey) -> EdgeIterator {
         let start_edge = self.get_face_outer_component(face).unwrap();
         EdgeIterator {
             diagram: self,
@@ -182,9 +205,9 @@ impl Diagram {
     /// * `right_face` - the other face that the edge will be between.
     pub fn add_edge(
         &mut self,
-        left_face: FaceIndex,
-        right_face: FaceIndex,
-    ) -> (HalfEdgeIndex, HalfEdgeIndex) {
+        left_face: FaceKey,
+        right_face: FaceKey,
+    ) -> (HalfEdgeKey, HalfEdgeKey) {
         let half_edge_1 = self.add_half_edge(left_face);
         let half_edge_2 = self.add_half_edge(right_face);
 
@@ -198,7 +221,7 @@ impl Diagram {
     ///
     /// # Arguments
     /// * `face` - the face incident to the new half edge.
-    pub fn add_half_edge(&mut self, face: FaceIndex) -> HalfEdgeIndex {
+    pub fn add_half_edge(&mut self, face: FaceKey) -> HalfEdgeKey {
         let new_half_edge = self.half_edges.insert(HalfEdge::new(face));
 
         if self.get_face_outer_component(face).is_none() {
@@ -208,11 +231,7 @@ impl Diagram {
         new_half_edge
     }
 
-    fn set_half_edge_twin(
-        &mut self,
-        half_edge: HalfEdgeIndex,
-        twin_half_edge: Option<HalfEdgeIndex>,
-    ) {
+    fn set_half_edge_twin(&mut self, half_edge: HalfEdgeKey, twin_half_edge: Option<HalfEdgeKey>) {
         let half_edge = self.half_edges.get_mut(half_edge).unwrap();
         half_edge.twin = twin_half_edge;
     }
@@ -221,7 +240,7 @@ impl Diagram {
     ///
     /// # Arguments
     /// * `point` - the location of the vertex.
-    pub fn add_vertex(&mut self, point: Vector2) -> VertexIndex {
+    pub fn add_vertex(&mut self, point: Vector2) -> VertexKey {
         self.vertices.insert(Vertex::new(point))
     }
 
@@ -232,7 +251,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the face index in invalid
-    pub fn get_face_point(&self, face: FaceIndex) -> Vector2 {
+    pub fn get_face_point(&self, face: FaceKey) -> Vector2 {
         let site = self.faces.get(face).unwrap();
         site.point
     }
@@ -244,7 +263,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the face index in invalid
-    pub fn get_face_outer_component(&self, face: FaceIndex) -> Option<HalfEdgeIndex> {
+    pub fn get_face_outer_component(&self, face: FaceKey) -> Option<HalfEdgeKey> {
         let face = self.faces.get(face).unwrap();
         face.outer_component
     }
@@ -257,7 +276,7 @@ impl Diagram {
     ///
     /// # Panics
     ///  If the face index is invalid.
-    pub fn set_face_outer_component(&mut self, face: FaceIndex, half_edge: Option<HalfEdgeIndex>) {
+    pub fn set_face_outer_component(&mut self, face: FaceKey, half_edge: Option<HalfEdgeKey>) {
         let face = self.faces.get_mut(face).unwrap();
         face.outer_component = half_edge;
     }
@@ -269,7 +288,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the half edge index is invalid.
-    pub fn get_half_edge_twin(&self, half_edge: HalfEdgeIndex) -> Option<HalfEdgeIndex> {
+    pub fn get_half_edge_twin(&self, half_edge: HalfEdgeKey) -> Option<HalfEdgeKey> {
         let half_edge = self.half_edges.get(half_edge).unwrap();
         half_edge.twin
     }
@@ -281,7 +300,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the half edge index is invalid
-    pub fn get_half_edge_incident_face(&self, half_edge: HalfEdgeIndex) -> Option<FaceIndex> {
+    pub fn get_half_edge_incident_face(&self, half_edge: HalfEdgeKey) -> Option<FaceKey> {
         let half_edge = self.half_edges.get(half_edge).unwrap();
         half_edge.incident_face
     }
@@ -293,7 +312,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the half edge index is invalid.
-    pub fn get_half_edge_prev(&self, half_edge: HalfEdgeIndex) -> Option<HalfEdgeIndex> {
+    pub fn get_half_edge_prev(&self, half_edge: HalfEdgeKey) -> Option<HalfEdgeKey> {
         let half_edge = self.half_edges.get(half_edge).unwrap();
         half_edge.prev
     }
@@ -305,7 +324,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the half edge index is invalid.
-    pub fn get_half_edge_next(&self, half_edge: HalfEdgeIndex) -> Option<HalfEdgeIndex> {
+    pub fn get_half_edge_next(&self, half_edge: HalfEdgeKey) -> Option<HalfEdgeKey> {
         let half_edge = self.half_edges.get(half_edge).unwrap();
         half_edge.next
     }
@@ -321,25 +340,17 @@ impl Diagram {
     ///
     /// # Panics
     /// If either of the indices are invalid.
-    pub fn link_half_edges(&mut self, prev: HalfEdgeIndex, next: HalfEdgeIndex) {
+    pub fn link_half_edges(&mut self, prev: HalfEdgeKey, next: HalfEdgeKey) {
         self.set_half_edge_prev(next, Some(prev));
         self.set_half_edge_next(prev, Some(next));
     }
 
-    fn set_half_edge_prev(
-        &mut self,
-        half_edge: HalfEdgeIndex,
-        prev_half_edge: Option<HalfEdgeIndex>,
-    ) {
+    fn set_half_edge_prev(&mut self, half_edge: HalfEdgeKey, prev_half_edge: Option<HalfEdgeKey>) {
         let half_edge = self.half_edges.get_mut(half_edge).unwrap();
         half_edge.prev = prev_half_edge;
     }
 
-    fn set_half_edge_next(
-        &mut self,
-        half_edge: HalfEdgeIndex,
-        next_half_edge: Option<HalfEdgeIndex>,
-    ) {
+    fn set_half_edge_next(&mut self, half_edge: HalfEdgeKey, next_half_edge: Option<HalfEdgeKey>) {
         let half_edge = self.half_edges.get_mut(half_edge).unwrap();
         half_edge.next = next_half_edge;
     }
@@ -351,7 +362,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the half edge index is invalid.
-    pub fn set_half_edge_origin(&mut self, half_edge: HalfEdgeIndex, origin: Option<VertexIndex>) {
+    pub fn set_half_edge_origin(&mut self, half_edge: HalfEdgeKey, origin: Option<VertexKey>) {
         let half_edge = self.half_edges.get_mut(half_edge).unwrap();
         half_edge.origin = origin;
     }
@@ -362,7 +373,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the half edge index is invalid.
-    pub fn get_half_edge_origin(&self, half_edge: HalfEdgeIndex) -> Option<VertexIndex> {
+    pub fn get_half_edge_origin(&self, half_edge: HalfEdgeKey) -> Option<VertexKey> {
         let half_edge = self.half_edges.get(half_edge).unwrap();
         half_edge.origin
     }
@@ -374,7 +385,7 @@ impl Diagram {
     /// # Panics
     /// If the half edge index is invalid or the origin vertex index stored in the half edge is
     /// invalid.
-    pub fn get_half_edge_origin_point(&self, half_edge: HalfEdgeIndex) -> Vector2 {
+    pub fn get_half_edge_origin_point(&self, half_edge: HalfEdgeKey) -> Vector2 {
         let half_edge = self.half_edges.get(half_edge).unwrap();
         self.get_vertex_point(half_edge.origin.unwrap())
     }
@@ -388,8 +399,8 @@ impl Diagram {
     /// If the half edge index is invalid.
     pub fn set_half_edge_destination(
         &mut self,
-        half_edge: HalfEdgeIndex,
-        destination: Option<VertexIndex>,
+        half_edge: HalfEdgeKey,
+        destination: Option<VertexKey>,
     ) {
         let half_edge = self.half_edges.get_mut(half_edge).unwrap();
         half_edge.destination = destination;
@@ -401,7 +412,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the half edge index is invalid.
-    pub fn get_half_edge_destination(&self, half_edge: HalfEdgeIndex) -> Option<VertexIndex> {
+    pub fn get_half_edge_destination(&self, half_edge: HalfEdgeKey) -> Option<VertexKey> {
         let half_edge = self.half_edges.get(half_edge).unwrap();
         half_edge.destination
     }
@@ -412,7 +423,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the vertex index is invalid.
-    pub fn get_vertex_point(&self, vertex: VertexIndex) -> Vector2 {
+    pub fn get_vertex_point(&self, vertex: VertexKey) -> Vector2 {
         let vertex = self.vertices.get(vertex).unwrap();
         vertex.point
     }
@@ -425,7 +436,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the face index is invalid.
-    pub fn calculate_face_center(&self, face: FaceIndex) -> Vector2 {
+    pub fn calculate_face_center(&self, face: FaceKey) -> Vector2 {
         let mut acc = Vector2::new(0.0, 0.0);
         let mut c = 0;
         for edge in self.outer_edge_iter(face) {
@@ -441,7 +452,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the face index is invalid.
-    pub fn get_face_area(&self, face: FaceIndex) -> f64 {
+    pub fn get_face_area(&self, face: FaceKey) -> f64 {
         self.outer_edge_iter(face)
             .fold(0.0, |acc, edge| {
                 let origin = self.get_vertex_point(self.get_half_edge_origin(edge).unwrap());
@@ -459,7 +470,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the face index is invalid.
-    pub fn is_face_on_border(&self, face: FaceIndex) -> bool {
+    pub fn is_face_on_border(&self, face: FaceKey) -> bool {
         for edge in self.outer_edge_iter(face) {
             if self.get_half_edge_twin(edge).is_none() {
                 return true;

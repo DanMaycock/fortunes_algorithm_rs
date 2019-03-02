@@ -158,9 +158,9 @@ impl BoundingBox {
         let mut processed_halfedges = vec![];
         for face in voronoi.get_face_indices() {
             let start_halfedge = voronoi.get_face_outer_component(face).unwrap();
-            let mut outgoing_halfedge: Option<HalfEdgeIndex> = None;
+            let mut outgoing_halfedge: Option<HalfEdgeKey> = None;
             let mut outgoing_side = Side::None;
-            let mut incoming_halfedge: Option<HalfEdgeIndex> = None;
+            let mut incoming_halfedge: Option<HalfEdgeKey> = None;
             let mut incoming_side = Side::None;
             let mut halfedge = start_halfedge;
             loop {
@@ -302,9 +302,9 @@ impl BoundingBox {
     pub fn link_vertices(
         &self,
         voronoi: &mut Diagram,
-        start_edge: HalfEdgeIndex,
+        start_edge: HalfEdgeKey,
         start_side: Side,
-        end_edge: HalfEdgeIndex,
+        end_edge: HalfEdgeKey,
         end_side: Side,
     ) {
         let mut edge = start_edge;
