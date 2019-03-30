@@ -21,7 +21,7 @@ impl Vertex {
 
 /// A Half Edge of the diagram.
 ///
-/// Stores the index of the origin and destination vertex of the halfedge as well as the index of
+/// Stores the index of the origin and destination vertex of the half_edge as well as the index of
 /// the face that is incident to the half edge.
 /// It also stores the index of the twin half edge, which is the half edge running in the opposite
 /// direction. That is the twin's origin is at the destination vertex and the twin's destination at
@@ -195,7 +195,7 @@ impl Diagram {
 
     /// Helper function to add a new edge to the diagram.
     ///
-    /// This is done by constructing the twin pair of halfedges that represent the edge.
+    /// This is done by constructing the twin pair of half_edges that represent the edge.
     /// # Remarks
     /// The half edges created are not fully populated and only know which face they are
     /// incident with and which half edge is their twin.
@@ -231,6 +231,10 @@ impl Diagram {
         new_half_edge
     }
 
+    pub fn remove_half_edge(&mut self, half_edge: HalfEdgeKey) {
+        self.half_edges.remove(half_edge);
+    }
+
     fn set_half_edge_twin(&mut self, half_edge: HalfEdgeKey, twin_half_edge: Option<HalfEdgeKey>) {
         let half_edge = self.half_edges.get_mut(half_edge).unwrap();
         half_edge.twin = twin_half_edge;
@@ -242,6 +246,10 @@ impl Diagram {
     /// * `point` - the location of the vertex.
     pub fn add_vertex(&mut self, point: Vector2) -> VertexKey {
         self.vertices.insert(Vertex::new(point))
+    }
+
+    pub fn remove_vertex(&mut self, vertex: VertexKey) {
+        self.vertices.remove(vertex);
     }
 
     /// Returns the point associated with a face.

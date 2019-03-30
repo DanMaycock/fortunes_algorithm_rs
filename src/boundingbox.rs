@@ -155,21 +155,22 @@ impl BoundingBox {
 
     pub fn intersect_diagram(&self, voronoi: &mut Diagram) {
         let mut vertices_to_remove = vec![];
-        let mut processed_halfedges = vec![];
+        let mut half_edges_to_remove = vec![];
+        let mut processed_half_edges = vec![];
         for face in voronoi.get_face_indices() {
-            let start_halfedge = voronoi.get_face_outer_component(face).unwrap();
-            let mut outgoing_halfedge: Option<HalfEdgeKey> = None;
+            let start_half_edge = voronoi.get_face_outer_component(face).unwrap();
+            let mut outgoing_half_edge: Option<HalfEdgeKey> = None;
             let mut outgoing_side = Side::None;
-            let mut incoming_halfedge: Option<HalfEdgeKey> = None;
+            let mut incoming_half_edge: Option<HalfEdgeKey> = None;
             let mut incoming_side = Side::None;
-            let mut halfedge = start_halfedge;
+            let mut half_edge = start_half_edge;
             loop {
-                let origin = voronoi.get_half_edge_origin(halfedge).unwrap();
-                let destination = voronoi.get_half_edge_destination(halfedge).unwrap();
+                let origin = voronoi.get_half_edge_origin(half_edge).unwrap();
+                let destination = voronoi.get_half_edge_destination(half_edge).unwrap();
                 let inside = self.contains(&voronoi.get_vertex_point(origin));
                 let next_inside = self.contains(&voronoi.get_vertex_point(destination));
 
-                let next_halfedge = voronoi.get_half_edge_next(halfedge).unwrap();
+                let next_half_edge = voronoi.get_half_edge_next(half_edge).unwrap();
 
                 if !inside || !next_inside {
                     let intersections = self.get_intersections(
@@ -181,122 +182,139 @@ impl BoundingBox {
                         if intersections.is_empty() {
                             // The edge is outside the box
                             vertices_to_remove.push(origin);
-                            if Some(halfedge) == voronoi.get_face_outer_component(face) {
-                                // Update the outer component before we delete the halfedge
+                            if Some(half_edge) == voronoi.get_face_outer_component(face) {
+                                // Update the outer component before we delete the half_edge
                                 voronoi.set_face_outer_component(
                                     face,
-                                    voronoi.get_half_edge_next(halfedge),
+                                    voronoi.get_half_edge_next(half_edge),
                                 );
                             }
 
-                        // voronoi.remove_half_edge(halfedge);
+                            half_edges_to_remove.push(half_edge);
                         } else if intersections.len() == 2 {
                             // The edge crosses the bounds of the box twice
                             vertices_to_remove.push(origin);
-                            let halfedge_twin = voronoi.get_half_edge_twin(halfedge);
-                            if halfedge_twin.is_some()
-                                && processed_halfedges.contains(&halfedge_twin.unwrap())
+                            let half_edge_twin = voronoi.get_half_edge_twin(half_edge);
+                            if half_edge_twin.is_some()
+                                && processed_half_edges.contains(&half_edge_twin.unwrap())
                             {
                                 voronoi.set_half_edge_origin(
-                                    halfedge,
-                                    voronoi.get_half_edge_destination(halfedge_twin.unwrap()),
+                                    half_edge,
+                                    voronoi.get_half_edge_destination(half_edge_twin.unwrap()),
                                 );
                                 voronoi.set_half_edge_destination(
-                                    halfedge,
-                                    voronoi.get_half_edge_origin(halfedge_twin.unwrap()),
+                                    half_edge,
+                                    voronoi.get_half_edge_origin(half_edge_twin.unwrap()),
                                 );
                             } else {
                                 let origin = voronoi.add_vertex(intersections[0].0);
                                 let destination = voronoi.add_vertex(intersections[1].0);
-                                voronoi.set_half_edge_origin(halfedge, Some(origin));
-                                voronoi.set_half_edge_destination(halfedge, Some(destination));
+                                voronoi.set_half_edge_origin(half_edge, Some(origin));
+                                voronoi.set_half_edge_destination(half_edge, Some(destination));
                             }
-                            if outgoing_halfedge.is_some() {
+                            if outgoing_half_edge.is_some() {
                                 self.link_vertices(
                                     voronoi,
-                                    outgoing_halfedge.unwrap(),
+                                    outgoing_half_edge.unwrap(),
                                     outgoing_side,
-                                    halfedge,
+                                    half_edge,
                                     intersections[0].1,
                                 )
                             }
-                            outgoing_halfedge = Some(halfedge);
+                            outgoing_half_edge = Some(half_edge);
                             outgoing_side = intersections[1].1;
-                            processed_halfedges.push(halfedge);
+                            processed_half_edges.push(half_edge);
                         } else {
-                            panic!("An edge that begins inside the box but ends outside can only have a single intersection, origin {:?}, destination {:?}", &voronoi.get_vertex_point(origin), &voronoi.get_vertex_point(destination));
+                            panic!(
+                                "An edge that begins inside the box but ends outside can only have a single intersection, origin {:?}, destination {:?}",
+                                 &voronoi.get_vertex_point(origin),
+                                  &voronoi.get_vertex_point(destination)
+                                  );
                         }
                     } else if inside && !next_inside {
                         // Edge is going outside the box
                         if intersections.len() == 1 {
-                            let halfedge_twin = voronoi.get_half_edge_twin(halfedge);
-                            if halfedge_twin.is_some()
-                                && processed_halfedges.contains(&halfedge_twin.unwrap())
+                            let half_edge_twin = voronoi.get_half_edge_twin(half_edge);
+                            if half_edge_twin.is_some()
+                                && processed_half_edges.contains(&half_edge_twin.unwrap())
                             {
                                 voronoi.set_half_edge_destination(
-                                    halfedge,
-                                    voronoi.get_half_edge_origin(halfedge_twin.unwrap()),
+                                    half_edge,
+                                    voronoi.get_half_edge_origin(half_edge_twin.unwrap()),
                                 );
                             } else {
                                 let destination = voronoi.add_vertex(intersections[0].0);
-                                voronoi.set_half_edge_destination(halfedge, Some(destination));
+                                voronoi.set_half_edge_destination(half_edge, Some(destination));
                             }
-                            if incoming_halfedge.is_some() {
+                            if incoming_half_edge.is_some() {
                                 self.link_vertices(
                                     voronoi,
-                                    halfedge,
+                                    half_edge,
                                     intersections[0].1,
-                                    incoming_halfedge.unwrap(),
+                                    incoming_half_edge.unwrap(),
                                     incoming_side,
                                 )
                             }
-                            outgoing_halfedge = Some(halfedge);
+                            outgoing_half_edge = Some(half_edge);
                             outgoing_side = intersections[0].1;
-                            processed_halfedges.push(halfedge);
+                            processed_half_edges.push(half_edge);
                         } else {
-                            panic!("An edge that begins inside the box but ends outside can only have a single intersection, origin {:?}, destination {:?}", &voronoi.get_vertex_point(origin), &voronoi.get_vertex_point(destination));
+                            panic!(
+                                "An edge that begins inside the box but ends outside can only have a single intersection, origin {:?}, destination {:?}", 
+                                &voronoi.get_vertex_point(origin), 
+                                &voronoi.get_vertex_point(destination)
+                                );
                         }
                     } else if !inside && next_inside {
                         // Edge is coming into the box
                         if intersections.len() == 1 {
                             vertices_to_remove.push(origin);
-                            let halfedge_twin = voronoi.get_half_edge_twin(halfedge);
-                            if halfedge_twin.is_some()
-                                && processed_halfedges.contains(&halfedge_twin.unwrap())
+                            let half_edge_twin = voronoi.get_half_edge_twin(half_edge);
+                            if half_edge_twin.is_some()
+                                && processed_half_edges.contains(&half_edge_twin.unwrap())
                             {
                                 voronoi.set_half_edge_origin(
-                                    halfedge,
-                                    voronoi.get_half_edge_destination(halfedge_twin.unwrap()),
+                                    half_edge,
+                                    voronoi.get_half_edge_destination(half_edge_twin.unwrap()),
                                 );
                             } else {
                                 let origin = voronoi.add_vertex(intersections[0].0);
-                                voronoi.set_half_edge_origin(halfedge, Some(origin));
+                                voronoi.set_half_edge_origin(half_edge, Some(origin));
                             }
-                            if outgoing_halfedge.is_some() {
+                            if outgoing_half_edge.is_some() {
                                 self.link_vertices(
                                     voronoi,
-                                    outgoing_halfedge.unwrap(),
+                                    outgoing_half_edge.unwrap(),
                                     outgoing_side,
-                                    halfedge,
+                                    half_edge,
                                     intersections[0].1,
                                 )
                             }
-                            incoming_halfedge = Some(halfedge);
+                            incoming_half_edge = Some(half_edge);
                             incoming_side = intersections[0].1;
-                            processed_halfedges.push(halfedge);
+                            processed_half_edges.push(half_edge);
                         } else {
-                            panic!("An edge that begins inside the box but ends outside can only have a single intersection, origin {:?}, destination {:?}", &voronoi.get_vertex_point(origin), &voronoi.get_vertex_point(destination));
+                            panic!(
+                                "An edge that begins inside the box but ends outside can only have a single intersection, origin {:?}, destination {:?}", 
+                                &voronoi.get_vertex_point(origin), 
+                                &voronoi.get_vertex_point(destination)
+                            );
                         }
                     }
                 }
-                if next_halfedge == start_halfedge {
+                if next_half_edge == start_half_edge {
                     // Back where we started so break out of the loop
                     break;
                 }
-                halfedge = next_halfedge;
+                half_edge = next_half_edge;
             }
         }
-        // TODO remove unneeded vertices from the diagram
+        for half_edge in half_edges_to_remove {
+            voronoi.remove_half_edge(half_edge);
+        }
+        for vertex in vertices_to_remove {
+            voronoi.remove_vertex(vertex);
+        }
     }
 
     pub fn link_vertices(

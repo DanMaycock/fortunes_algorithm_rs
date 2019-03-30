@@ -40,7 +40,7 @@ use boundingbox::BoundingBox;
 use diagram::{Diagram, FaceKey, HalfEdgeKey, VertexKey};
 use event::Event;
 use event::EventType;
-use std::f64;
+use std::{f64, collections::HashMap};
 use vector2::{compute_circumcircle_center, Vector2};
 
 /// Generate a voronoi diagram using fortunes's algorithm from the supplied points.

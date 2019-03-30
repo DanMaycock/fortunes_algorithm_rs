@@ -17,8 +17,8 @@ const VIEW_MARGIN: f64 = 10.0;
 
 const DRAW_DELAUNEY_EDGES: bool = true;
 const DRAW_DELAUNEY_VERTICES: bool = true;
-const DRAW_VORONOI_EDGES: bool = true;
-const DRAW_VORONOI_VERTICES: bool = true;
+const DRAW_VORONOI_EDGES: bool = false;
+const DRAW_VORONOI_VERTICES: bool = false;
 
 const NUM_POINTS: usize = 10_000;
 
@@ -87,18 +87,21 @@ fn main() {
 
     let voronoi = fortunes_algorithm::generate_diagram(&points);
 
-    // let delauney = get_delauney_graph(&voronoi);
-    // let delauney_vertices: Vec<Vector2> = delauney
-    //     .node_indices()
-    //     .map(|node| delauney.node_weight(node).unwrap().position())
-    //     .collect();
-    // let delauney_edges: Vec<(usize, usize)> = delauney
-    //     .edge_indices()
-    //     .map(|edge| {
-    //         let (from, to) = delauney.edge_endpoints(edge).unwrap();
-    //         (from.index(), to.index())
-    //     })
-    //     .collect();
+    let delauney = fortunes_algorithm::delauney::get_delauney_graph(&voronoi);
+    let delauney_vertices: Vec<Vector2> = delauney
+        .node_indices()
+        .map(|node| delauney.node_weight(node).unwrap().position())
+        .collect();
+    let delauney_edges: Vec<(Vector2, Vector2)> = delauney
+        .edge_indices()
+        .map(|edge| {
+            let (from, to) = delauney.edge_endpoints(edge).unwrap();
+            (
+                delauney.node_weight(from).unwrap().position(),
+                delauney.node_weight(to).unwrap().position(),
+            )
+        })
+        .collect();
 
     let voronoi_vertices = voronoi.get_vertex_points();
     let voronoi_edges = voronoi.get_edge_endpoints();
@@ -112,16 +115,16 @@ fn main() {
     while let Some(e) = window.next() {
         window.draw_2d(&e, |c, g| {
             clear(BLACK, g);
-            // draw(
-            //     &delauney_vertices,
-            //     &delauney_edges,
-            //     DRAW_DELAUNEY_VERTICES,
-            //     DRAW_DELAUNEY_EDGES,
-            //     RED,
-            //     YELLOW,
-            //     c,
-            //     g,
-            // );
+            draw(
+                &delauney_vertices,
+                &delauney_edges,
+                DRAW_DELAUNEY_VERTICES,
+                DRAW_DELAUNEY_EDGES,
+                RED,
+                YELLOW,
+                c,
+                g,
+            );
             draw(
                 &voronoi_vertices,
                 &voronoi_edges,
