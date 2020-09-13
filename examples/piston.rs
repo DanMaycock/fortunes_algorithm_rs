@@ -15,12 +15,12 @@ const POINT_SIZE: f64 = 2.0;
 const LINE_WIDTH: f64 = 0.5;
 const VIEW_MARGIN: f64 = 10.0;
 
-const DRAW_DELAUNEY_EDGES: bool = true;
+const DRAW_DELAUNEY_EDGES: bool = false;
 const DRAW_DELAUNEY_VERTICES: bool = true;
-const DRAW_VORONOI_EDGES: bool = false;
-const DRAW_VORONOI_VERTICES: bool = false;
+const DRAW_VORONOI_EDGES: bool = true;
+const DRAW_VORONOI_VERTICES: bool = true;
 
-const NUM_POINTS: usize = 10_000;
+const NUM_POINTS: usize = 5_000;
 
 fn diagram_to_canvas(point: &Vector2) -> Vector2 {
     Vector2::new(
@@ -113,7 +113,7 @@ fn main() {
 
     window.set_lazy(true);
     while let Some(e) = window.next() {
-        window.draw_2d(&e, |c, g| {
+        window.draw_2d(&e, |c, g, _device| {
             clear(BLACK, g);
             draw(
                 &delauney_vertices,

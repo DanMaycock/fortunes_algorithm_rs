@@ -6,10 +6,10 @@ edition = "2018"
 
 [dependencies]
 binary_search_tree = {git = "https://github.com/DanMaycock/binary_search_tree_rs.git"}
-rand = "0.6.4"
-petgraph = "0.4.13"
+rand = "0.7.3"
+petgraph = "0.5.1"
 priority_queue = {git = "https://github.com/DanMaycock/priority_queue_rs.git"}
-slotmap = {version = "0.3.0", features = ["serde"]}
+slotmap = {version = "0.4.0", features = ["serde"]}
 
 [dev-dependencies]
-piston_window = "0.89.0"
+piston_window = "0.112.0"
