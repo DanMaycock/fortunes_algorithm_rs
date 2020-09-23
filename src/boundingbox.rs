@@ -1,5 +1,4 @@
 use super::*;
-use crate::vector2::Vector2;
 use std::f64;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -42,14 +41,14 @@ impl BoundingBox {
         }
     }
 
-    pub fn contains(&self, point: &Vector2) -> bool {
+    pub fn contains(&self, point: &cgmath::Point2<f64>) -> bool {
         (point.x >= self.left)
             && (point.x <= self.right)
             && (point.y >= self.top)
             && (point.y <= self.bottom)
     }
 
-    pub fn get_intersection(&self, origin: &Vector2, direction: &Vector2) -> (Vector2, Side) {
+    pub fn get_intersection(&self, origin: &cgmath::Point2<f64>, direction: &cgmath::Vector2<f64>) -> (cgmath::Point2<f64>, Side) {
         assert!(self.contains(origin));
         let (t1, side1) = if direction.x < 0.0 {
             ((self.right - origin.x) / direction.x, Side::Right)
@@ -76,7 +75,7 @@ impl BoundingBox {
         (*origin + (*direction * t), side)
     }
 
-    pub fn get_corner(&self, side_1: Side, side_2: Side) -> Vector2 {
+    pub fn get_corner(&self, side_1: Side, side_2: Side) -> cgmath::Point2<f64> {
         match (side_1, side_2) {
             (Side::Top, Side::Left) | (Side::Left, Side::Top) => self.get_top_left(),
             (Side::Top, Side::Right) | (Side::Right, Side::Top) => self.get_top_right(),
@@ -86,27 +85,27 @@ impl BoundingBox {
         }
     }
 
-    pub fn get_top_left(&self) -> Vector2 {
-        Vector2::new(self.left, self.top)
+    pub fn get_top_left(&self) -> cgmath::Point2<f64> {
+        cgmath::Point2::new(self.left, self.top)
     }
 
-    pub fn get_top_right(&self) -> Vector2 {
-        Vector2::new(self.right, self.top)
+    pub fn get_top_right(&self) -> cgmath::Point2<f64> {
+        cgmath::Point2::new(self.right, self.top)
     }
 
-    pub fn get_bottom_left(&self) -> Vector2 {
-        Vector2::new(self.left, self.bottom)
+    pub fn get_bottom_left(&self) -> cgmath::Point2<f64> {
+        cgmath::Point2::new(self.left, self.bottom)
     }
 
-    pub fn get_bottom_right(&self) -> Vector2 {
-        Vector2::new(self.right, self.bottom)
+    pub fn get_bottom_right(&self) -> cgmath::Point2<f64> {
+        cgmath::Point2::new(self.right, self.bottom)
     }
 
     pub fn get_intersections(
         &self,
-        origin: &Vector2,
-        destination: &Vector2,
-    ) -> Vec<(Vector2, Side)> {
+        origin: &cgmath::Point2<f64>,
+        destination: &cgmath::Point2<f64>,
+    ) -> Vec<(cgmath::Point2<f64>, Side)> {
         let mut intersections = vec![];
         let direction = *destination - *origin;
         // Left
@@ -352,49 +351,49 @@ mod tests {
     fn contains_test() {
         let bbox = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
 
-        assert_eq!(bbox.contains(&Vector2::new(0.5, 0.5)), true);
-        assert_eq!(bbox.contains(&Vector2::new(1.5, 0.5)), false);
-        assert_eq!(bbox.contains(&Vector2::new(-0.5, 0.5)), false);
-        assert_eq!(bbox.contains(&Vector2::new(0.5, 1.5)), false);
-        assert_eq!(bbox.contains(&Vector2::new(0.5, -0.5)), false);
+        assert_eq!(bbox.contains(&cgmath::Point2::new(0.5, 0.5)), true);
+        assert_eq!(bbox.contains(&cgmath::Point2::new(1.5, 0.5)), false);
+        assert_eq!(bbox.contains(&cgmath::Point2::new(-0.5, 0.5)), false);
+        assert_eq!(bbox.contains(&cgmath::Point2::new(0.5, 1.5)), false);
+        assert_eq!(bbox.contains(&cgmath::Point2::new(0.5, -0.5)), false);
     }
 
     #[test]
     fn intersections_test() {
         let bbox = BoundingBox::new(0.0, 1.0, 0.0, 1.0);
 
-        let origin = Vector2::new(1.5, 0.5);
-        let destination = Vector2::new(0.5, 0.5);
+        let origin = cgmath::Point2::new(1.5, 0.5);
+        let destination = cgmath::Point2::new(0.5, 0.5);
 
         let intersections = bbox.get_intersections(&origin, &destination);
         assert_eq!(intersections.len(), 1);
 
-        let origin = Vector2::new(0.5, 1.5);
-        let destination = Vector2::new(0.5, 0.5);
+        let origin = cgmath::Point2::new(0.5, 1.5);
+        let destination = cgmath::Point2::new(0.5, 0.5);
 
         let intersections = bbox.get_intersections(&origin, &destination);
         assert_eq!(intersections.len(), 1);
 
-        let origin = Vector2::new(0.5, -0.5);
-        let destination = Vector2::new(0.5, 0.5);
+        let origin = cgmath::Point2::new(0.5, -0.5);
+        let destination = cgmath::Point2::new(0.5, 0.5);
 
         let intersections = bbox.get_intersections(&origin, &destination);
         assert_eq!(intersections.len(), 1);
 
-        let origin = Vector2::new(-0.5, 0.5);
-        let destination = Vector2::new(0.5, 0.5);
+        let origin = cgmath::Point2::new(-0.5, 0.5);
+        let destination = cgmath::Point2::new(0.5, 0.5);
 
         let intersections = bbox.get_intersections(&origin, &destination);
         assert_eq!(intersections.len(), 1);
 
-        let origin = Vector2::new(-0.5, 0.5);
-        let destination = Vector2::new(1.5, 0.5);
+        let origin = cgmath::Point2::new(-0.5, 0.5);
+        let destination = cgmath::Point2::new(1.5, 0.5);
 
         let intersections = bbox.get_intersections(&origin, &destination);
         assert_eq!(intersections.len(), 2);
 
-        let origin = Vector2::new(0.5, -0.5);
-        let destination = Vector2::new(0.5, 1.5);
+        let origin = cgmath::Point2::new(0.5, -0.5);
+        let destination = cgmath::Point2::new(0.5, 1.5);
 
         let intersections = bbox.get_intersections(&origin, &destination);
         assert_eq!(intersections.len(), 2);

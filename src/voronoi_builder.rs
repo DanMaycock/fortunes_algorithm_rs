@@ -1,7 +1,8 @@
 use super::*;
+use cgmath::MetricSpace;
 use priority_queue::PriorityQueue;
 
-pub fn build_voronoi(points: &[Vector2]) -> Diagram {
+pub fn build_voronoi(points: &[cgmath::Point2<f64>]) -> Diagram {
     let mut event_queue = PriorityQueue::new();
 
     let mut voronoi = Diagram::default();
@@ -114,11 +115,11 @@ fn handle_site_event(
     }
 }
 
-fn is_moving_right(left: Vector2, right: Vector2) -> bool {
+fn is_moving_right(left: cgmath::Point2<f64>, right: cgmath::Point2<f64>) -> bool {
     left.y > right.y
 }
 
-fn get_initial_x(left: Vector2, right: Vector2, moving_right: bool) -> f64 {
+fn get_initial_x(left: cgmath::Point2<f64>, right: cgmath::Point2<f64>, moving_right: bool) -> f64 {
     if moving_right {
         left.x
     } else {
@@ -139,7 +140,7 @@ fn add_event(
     let middle_point = voronoi.get_face_point(beachline.get_arc_face(middle_arc).unwrap());
     let right_point = voronoi.get_face_point(beachline.get_arc_face(right_arc).unwrap());
     let center = compute_circumcircle_center(left_point, middle_point, right_point);
-    let radius = center.get_distance(middle_point);
+    let radius = center.distance(middle_point);
     let event_y = center.y + radius;
 
     if event_y > current_y - f64::EPSILON {
@@ -162,7 +163,7 @@ fn add_event(
 }
 
 fn handle_circle_event(
-    point: Vector2,
+    point: cgmath::Point2<f64>,
     arc: NodeKey,
     voronoi: &mut Diagram,
     beachline: &mut Beachline,

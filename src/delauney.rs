@@ -1,33 +1,21 @@
 use super::*;
 use petgraph::Graph;
 
-type DelauneyGraph = Graph<DelauneyVertex, ()>;
+pub type DelauneyGraph = Graph<DelauneyVertex, ()>;
 
 pub struct DelauneyVertex {
-    position: Vector2,
-    is_edge: bool,
-    area: f64,
+    pub position: cgmath::Point2<f64>,
+    pub is_edge: bool,
+    pub area: f64,
 }
 
 impl DelauneyVertex {
-    fn new(position: Vector2, is_edge: bool, area: f64) -> Self {
+    fn new<V: Into<cgmath::Point2<f64>>>(position: V, is_edge: bool, area: f64) -> Self {
         DelauneyVertex {
-            position,
+            position: position.into(),
             is_edge,
             area,
         }
-    }
-
-    pub fn position(&self) -> Vector2 {
-        self.position
-    }
-
-    pub fn is_edge(&self) -> bool {
-        self.is_edge
-    }
-
-    pub fn area(&self) -> f64 {
-        self.area
     }
 }
 
@@ -69,7 +57,7 @@ impl<'a> Iterator for AdjacentFaceIterator<'a> {
 fn get_adjacent_face_iterator(voronoi: &Diagram, index: FaceKey) -> AdjacentFaceIterator {
     let start_edge = voronoi.get_face_outer_component(index).unwrap();
     AdjacentFaceIterator {
-        voronoi: voronoi,
+        voronoi,
         start_edge,
         current_edge: None,
     }

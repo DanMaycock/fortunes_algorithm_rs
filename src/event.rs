@@ -3,8 +3,13 @@ use std::cmp::Ordering;
 
 #[derive(Debug)]
 pub enum EventType {
-    SiteEvent { face: FaceKey },
-    CircleEvent { point: Vector2, arc: NodeKey },
+    SiteEvent {
+        face: FaceKey,
+    },
+    CircleEvent {
+        point: cgmath::Point2<f64>,
+        arc: NodeKey,
+    },
 }
 
 #[derive(Debug)]
@@ -33,7 +38,7 @@ impl Event {
         }
     }
 
-    pub fn circle_event(y: f64, point: Vector2, arc: NodeKey) -> Self {
+    pub fn circle_event(y: f64, point: cgmath::Point2<f64>, arc: NodeKey) -> Self {
         Event {
             y,
             event_type: EventType::CircleEvent { point, arc },

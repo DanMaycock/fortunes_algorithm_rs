@@ -1,4 +1,3 @@
-use fortunes_algorithm::vector2::Vector2;
 use piston_window::*;
 use rand::Rng;
 
@@ -22,37 +21,48 @@ const DRAW_VORONOI_VERTICES: bool = true;
 
 const NUM_POINTS: usize = 5_000;
 
-fn diagram_to_canvas(point: &Vector2) -> Vector2 {
-    Vector2::new(
+fn diagram_to_canvas(point: &cgmath::Point2<f64>) -> cgmath::Point2<f64> {
+    cgmath::Point2::new(
         (point.x * (WINDOW_WIDTH - 2.0 * VIEW_MARGIN)) + VIEW_MARGIN,
         (point.y * (WINDOW_HEIGHT - 2.0 * VIEW_MARGIN)) + VIEW_MARGIN,
     )
 }
 
-fn draw_point<G: Graphics>(point: &Vector2, pen: Rectangle, c: Context, g: &mut G) {
+fn draw_point<G: Graphics>(point: &cgmath::Point2<f64>, pen: Rectangle, c: Context, g: &mut G) {
     let point = diagram_to_canvas(point);
     let rectangle = [
-        point.x - POINT_SIZE / 2.0,
-        point.y - POINT_SIZE / 2.0,
-        POINT_SIZE,
-        POINT_SIZE,
+        (point.x - POINT_SIZE / 2.0) as f64,
+        (point.y - POINT_SIZE / 2.0) as f64,
+        POINT_SIZE as f64,
+        POINT_SIZE as f64,
     ];
     pen.draw(rectangle, &c.draw_state, c.transform, g);
 }
 
-fn draw_edge<G: Graphics>(from: &Vector2, to: &Vector2, pen: Line, c: Context, g: &mut G) {
+fn draw_edge<G: Graphics>(
+    from: &cgmath::Point2<f64>,
+    to: &cgmath::Point2<f64>,
+    pen: Line,
+    c: Context,
+    g: &mut G,
+) {
     let from = diagram_to_canvas(from);
     let to = diagram_to_canvas(to);
-    pen.draw([from.x, from.y, to.x, to.y], &c.draw_state, c.transform, g);
+    pen.draw(
+        [from.x as f64, from.y as f64, to.x as f64, to.y as f64],
+        &c.draw_state,
+        c.transform,
+        g,
+    );
 }
 
-fn in_diagram(point: &Vector2) -> bool {
+fn in_diagram(point: &cgmath::Point2<f64>) -> bool {
     point.x >= 0.0 && point.x <= 1.0 && point.y >= 0.0 && point.y <= 1.0
 }
 
 fn draw<G: Graphics>(
-    vertices: &[Vector2],
-    edges: &[(Vector2, Vector2)],
+    vertices: &[cgmath::Point2<f64>],
+    edges: &[(cgmath::Point2<f64>, cgmath::Point2<f64>)],
     draw_vertices: bool,
     draw_edges: bool,
     vertex_color: [f32; 4],
@@ -77,10 +87,11 @@ fn draw<G: Graphics>(
 }
 
 fn main() {
-    let mut points: Vec<Vector2> = vec![];
+    let mut points: Vec<cgmath::Point2<f64>> = vec![];
     let mut rng = rand::thread_rng();
     for _ in 0..NUM_POINTS {
-        points.push(Vector2::new(rng.gen(), rng.gen()));
+        let candidate = cgmath::Point2::new(rng.gen(), rng.gen());
+        points.push(candidate);
     }
 
     points = fortunes_algorithm::lloyds_relaxation(&points, 5);
@@ -88,17 +99,17 @@ fn main() {
     let voronoi = fortunes_algorithm::generate_diagram(&points);
 
     let delauney = fortunes_algorithm::delauney::get_delauney_graph(&voronoi);
-    let delauney_vertices: Vec<Vector2> = delauney
+    let delauney_vertices: Vec<cgmath::Point2<f64>> = delauney
         .node_indices()
-        .map(|node| delauney.node_weight(node).unwrap().position())
+        .map(|node| delauney.node_weight(node).unwrap().position.into())
         .collect();
-    let delauney_edges: Vec<(Vector2, Vector2)> = delauney
+    let delauney_edges: Vec<(cgmath::Point2<f64>, cgmath::Point2<f64>)> = delauney
         .edge_indices()
         .map(|edge| {
             let (from, to) = delauney.edge_endpoints(edge).unwrap();
             (
-                delauney.node_weight(from).unwrap().position(),
-                delauney.node_weight(to).unwrap().position(),
+                delauney.node_weight(from).unwrap().position.into(),
+                delauney.node_weight(to).unwrap().position.into(),
             )
         })
         .collect();
@@ -106,10 +117,11 @@ fn main() {
     let voronoi_vertices = voronoi.get_vertex_points();
     let voronoi_edges = voronoi.get_edge_endpoints();
 
-    let mut window: PistonWindow = WindowSettings::new("Voronoi", [WINDOW_WIDTH, WINDOW_HEIGHT])
-        .exit_on_esc(true)
-        .build()
-        .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
+    let mut window: PistonWindow =
+        WindowSettings::new("Voronoi", [WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64])
+            .exit_on_esc(true)
+            .build()
+            .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
 
     window.set_lazy(true);
     while let Some(e) = window.next() {

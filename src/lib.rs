@@ -19,10 +19,10 @@
 //!
 //! The following code will generate a diagram from 10,000 random points.
 //! ```rust
-//! let mut points: Vec<Vector2> = vec![];
+//! let mut points: Vec<cgmath::Point2> = vec![];
 //! let mut rng = rand::thread_rng();
 //! for _ in 0..10,000 {
-//!     points.push(Vector2::new(rng.gen(), rng.gen()));
+//!     points.push(cgmath::Point2::new(rng.gen(), rng.gen()));
 //! }
 //! let voronoi = fortunes_algorithm::generate_diagram(&points);
 //! ```
@@ -40,13 +40,13 @@ use boundingbox::BoundingBox;
 use diagram::{Diagram, FaceKey, HalfEdgeKey, VertexKey};
 use event::Event;
 use event::EventType;
-use std::{f64, collections::HashMap};
-use vector2::{compute_circumcircle_center, Vector2};
+use std::{collections::HashMap, f64};
+use vector2::compute_circumcircle_center;
 
 /// Generate a voronoi diagram using fortunes's algorithm from the supplied points.
 /// # Arguments
 /// * `points` - The points to construct the diagram from, these should be in the range [0,1] X [0,1].
-pub fn generate_diagram(points: &[Vector2]) -> Diagram {
+pub fn generate_diagram(points: &[cgmath::Point2<f64>]) -> Diagram {
     voronoi_builder::build_voronoi(points)
 }
 
@@ -57,7 +57,10 @@ pub fn generate_diagram(points: &[Vector2]) -> Diagram {
 /// # Arguments
 /// * `points` - The initial points, these should be in the range [0, 1] X [0,1].
 /// * `iterations` - The number of iterations of that we should perform.
-pub fn lloyds_relaxation(points: &[Vector2], iterations: usize) -> Vec<Vector2> {
+pub fn lloyds_relaxation(
+    points: &[cgmath::Point2<f64>],
+    iterations: usize,
+) -> Vec<cgmath::Point2<f64>> {
     let mut points = points.to_vec();
     for _ in 0..iterations {
         let voronoi = generate_diagram(&points);

@@ -1,5 +1,7 @@
 use super::*;
-use binary_search_tree::{Tree, NodeKey};
+use crate::vector2::get_orthogonal;
+use binary_search_tree::{NodeKey, Tree};
+use cgmath::EuclideanSpace;
 use priority_queue::QueueIndex;
 use std::f64;
 
@@ -37,7 +39,12 @@ impl Beachline {
         self.tree.create_root(Arc::new(face))
     }
 
-    pub fn locate_arc_above(&self, point: Vector2, y: f64, voronoi: &Diagram) -> NodeKey {
+    pub fn locate_arc_above(
+        &self,
+        point: cgmath::Point2<f64>,
+        y: f64,
+        voronoi: &Diagram,
+    ) -> NodeKey {
         let mut current_arc = self.tree.root.unwrap();
         let mut found = false;
         while !found {
@@ -118,8 +125,8 @@ impl Beachline {
                 let left_point = voronoi.get_face_point(left_face);
                 let right_point = voronoi.get_face_point(right_face);
 
-                let direction = (left_point - right_point).get_orthogonal();
-                let origin = (left_point + right_point) * 0.5;
+                let direction = get_orthogonal(left_point - right_point);
+                let origin = (left_point + right_point.to_vec()) * 0.5;
                 let intersection = bbox.get_intersection(&origin, &direction);
 
                 let vertex = voronoi.add_vertex(intersection.0);
@@ -200,7 +207,7 @@ impl Beachline {
     }
 }
 
-fn compute_breakpoint(point1: Vector2, point2: Vector2, y: f64) -> f64 {
+fn compute_breakpoint(point1: cgmath::Point2<f64>, point2: cgmath::Point2<f64>, y: f64) -> f64 {
     let d1 = 1.0 / (2.0 * (point1.y - y));
     let d2 = 1.0 / (2.0 * (point2.y - y));
     let a = d1 - d2;
@@ -230,18 +237,32 @@ mod tests {
     #[test]
     fn compute_breakpoint_test() {
         assert!(
-            (compute_breakpoint(Vector2::new(0.4, 0.5), Vector2::new(0.6, 0.5), 0.8) - 0.5).abs()
-                < f64::EPSILON
-        );
-
-        assert!(
-            (compute_breakpoint(Vector2::new(0.25, 0.5), Vector2::new(0.5, 0.25), 0.75) - 0.5)
+            (compute_breakpoint(
+                cgmath::Point2::new(0.4, 0.5),
+                cgmath::Point2::new(0.6, 0.5),
+                0.8
+            ) - 0.5)
                 .abs()
                 < f64::EPSILON
         );
 
         assert!(
-            (compute_breakpoint(Vector2::new(0.5, 0.2), Vector2::new(0.6, 0.5), 0.5) - 0.5).abs()
+            (compute_breakpoint(
+                cgmath::Point2::new(0.25, 0.5),
+                cgmath::Point2::new(0.5, 0.25),
+                0.75
+            ) - 0.5)
+                .abs()
+                < f64::EPSILON
+        );
+
+        assert!(
+            (compute_breakpoint(
+                cgmath::Point2::new(0.5, 0.2),
+                cgmath::Point2::new(0.6, 0.5),
+                0.5
+            ) - 0.5)
+                .abs()
                 < f64::EPSILON
         );
     }

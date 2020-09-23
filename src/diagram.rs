@@ -1,4 +1,5 @@
 use super::*;
+use cgmath::EuclideanSpace;
 use slotmap::{new_key_type, SlotMap};
 
 new_key_type! { pub struct VertexKey; }
@@ -10,11 +11,11 @@ new_key_type! { pub struct FaceKey; }
 /// Consists only of the points at which the vertex is located.
 #[derive(Clone, Copy)]
 struct Vertex {
-    point: Vector2,
+    point: cgmath::Point2<f64>,
 }
 
 impl Vertex {
-    fn new(point: Vector2) -> Self {
+    fn new(point: cgmath::Point2<f64>) -> Self {
         Vertex { point }
     }
 }
@@ -60,12 +61,12 @@ impl HalfEdge {
 /// single bordering half edge.
 #[derive(Clone, Copy)]
 struct Face {
-    point: Vector2,
+    point: cgmath::Point2<f64>,
     outer_component: Option<HalfEdgeKey>,
 }
 
 impl Face {
-    fn new(point: Vector2) -> Self {
+    fn new(point: cgmath::Point2<f64>) -> Self {
         Face {
             point,
             outer_component: None,
@@ -120,7 +121,7 @@ impl Diagram {
     /// Adds a new face to the diagram
     /// # Arguments
     /// * `point` - the point associated with the face
-    pub fn add_face(&mut self, point: Vector2) {
+    pub fn add_face(&mut self, point: cgmath::Point2<f64>) {
         self.faces.insert(Face::new(point));
     }
 
@@ -130,7 +131,7 @@ impl Diagram {
     }
 
     /// Returns the location of every vertex in the diagram
-    pub fn get_vertex_points(&self) -> Vec<Vector2> {
+    pub fn get_vertex_points(&self) -> Vec<cgmath::Point2<f64>> {
         self.vertices
             .iter()
             .map(|(_, vertex)| vertex.point)
@@ -156,7 +157,7 @@ impl Diagram {
     }
 
     /// Returns a vector with the start and end points of every half edge in the diagram
-    pub fn get_edge_endpoints(&self) -> Vec<(Vector2, Vector2)> {
+    pub fn get_edge_endpoints(&self) -> Vec<(cgmath::Point2<f64>, cgmath::Point2<f64>)> {
         let mut edges = vec![];
         for face in self.get_face_indices() {
             for edge in self.outer_edge_iter(face) {
@@ -244,7 +245,7 @@ impl Diagram {
     ///
     /// # Arguments
     /// * `point` - the location of the vertex.
-    pub fn add_vertex(&mut self, point: Vector2) -> VertexKey {
+    pub fn add_vertex(&mut self, point: cgmath::Point2<f64>) -> VertexKey {
         self.vertices.insert(Vertex::new(point))
     }
 
@@ -259,7 +260,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the face index in invalid
-    pub fn get_face_point(&self, face: FaceKey) -> Vector2 {
+    pub fn get_face_point(&self, face: FaceKey) -> cgmath::Point2<f64> {
         let site = self.faces.get(face).unwrap();
         site.point
     }
@@ -393,7 +394,7 @@ impl Diagram {
     /// # Panics
     /// If the half edge index is invalid or the origin vertex index stored in the half edge is
     /// invalid.
-    pub fn get_half_edge_origin_point(&self, half_edge: HalfEdgeKey) -> Vector2 {
+    pub fn get_half_edge_origin_point(&self, half_edge: HalfEdgeKey) -> cgmath::Point2<f64> {
         let half_edge = self.half_edges.get(half_edge).unwrap();
         self.get_vertex_point(half_edge.origin.unwrap())
     }
@@ -431,7 +432,7 @@ impl Diagram {
     ///
     /// # Panics
     /// If the vertex index is invalid.
-    pub fn get_vertex_point(&self, vertex: VertexKey) -> Vector2 {
+    pub fn get_vertex_point(&self, vertex: VertexKey) -> cgmath::Point2<f64> {
         let vertex = self.vertices.get(vertex).unwrap();
         vertex.point
     }
@@ -444,14 +445,14 @@ impl Diagram {
     ///
     /// # Panics
     /// If the face index is invalid.
-    pub fn calculate_face_center(&self, face: FaceKey) -> Vector2 {
-        let mut acc = Vector2::new(0.0, 0.0);
+    pub fn calculate_face_center(&self, face: FaceKey) -> cgmath::Point2<f64> {
+        let mut acc = cgmath::Point2::new(0.0, 0.0);
         let mut c = 0;
         for edge in self.outer_edge_iter(face) {
-            acc = acc + self.get_half_edge_origin_point(edge);
+            acc = acc + self.get_half_edge_origin_point(edge).to_vec();
             c += 1;
         }
-        acc * (1.0 / f64::from(c))
+        acc * (1.0 / c as f64)
     }
 
     /// Calculates the area of a face in the diagram.
