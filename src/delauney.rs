@@ -1,22 +1,10 @@
 use super::*;
 use petgraph::Graph;
 
-pub type DelauneyGraph = Graph<DelauneyVertex, ()>;
+pub type DelauneyGraph<T> = Graph<T, ()>;
 
-pub struct DelauneyVertex {
-    pub position: cgmath::Point2<f64>,
-    pub is_edge: bool,
-    pub area: f64,
-}
-
-impl DelauneyVertex {
-    fn new<V: Into<cgmath::Point2<f64>>>(position: V, is_edge: bool, area: f64) -> Self {
-        DelauneyVertex {
-            position: position.into(),
-            is_edge,
-            area,
-        }
-    }
+pub trait DelauneyVertex {
+    fn new(position: cgmath::Point2<f64>, is_edge: bool, area: f64) -> Self;
 }
 
 pub struct AdjacentFaceIterator<'a> {
@@ -54,16 +42,7 @@ impl<'a> Iterator for AdjacentFaceIterator<'a> {
     }
 }
 
-fn get_adjacent_face_iterator(voronoi: &Diagram, index: FaceKey) -> AdjacentFaceIterator {
-    let start_edge = voronoi.get_face_outer_component(index).unwrap();
-    AdjacentFaceIterator {
-        voronoi,
-        start_edge,
-        current_edge: None,
-    }
-}
-
-pub fn get_delauney_graph(voronoi: &Diagram) -> DelauneyGraph {
+pub fn get_delauney_graph<T: DelauneyVertex>(voronoi: &Diagram) -> DelauneyGraph<T> {
     let mut graph = Graph::new();
 
     let mut face_to_node_index_map = HashMap::new();
@@ -79,11 +58,21 @@ pub fn get_delauney_graph(voronoi: &Diagram) -> DelauneyGraph {
 
     for face in voronoi.get_face_indices() {
         let index = face_to_node_index_map[&face];
-        for adjacent_face in get_adjacent_face_iterator(voronoi, face) {
+        for adjacent_face in delauney::get_adjacent_face_iterator(voronoi, face) {
             let adjacent_index = face_to_node_index_map[&adjacent_face];
             graph.add_edge(index, adjacent_index, ());
         }
     }
 
     graph
+}
+
+
+pub fn get_adjacent_face_iterator(voronoi: &Diagram, index: FaceKey) -> AdjacentFaceIterator {
+    let start_edge = voronoi.get_face_outer_component(index).unwrap();
+    AdjacentFaceIterator {
+        voronoi,
+        start_edge,
+        current_edge: None,
+    }
 }

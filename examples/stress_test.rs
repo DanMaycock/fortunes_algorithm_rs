@@ -8,6 +8,6 @@ fn main() {
             points.push(cgmath::Point2::new(rng.gen(), rng.gen()));
         }
 
-        fortunes_algorithm::generate_diagram(&points);
+        fortunes_algorithm::build_voronoi(&points);
     }
 }

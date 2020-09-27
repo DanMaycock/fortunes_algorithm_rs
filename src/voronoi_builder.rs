@@ -1,7 +1,11 @@
 use super::*;
 use cgmath::MetricSpace;
 use priority_queue::PriorityQueue;
+use log::info;
 
+/// Generate a voronoi diagram using fortunes's algorithm from the supplied points.
+/// # Arguments
+/// * `points` - The points to construct the diagram from, these should be in the range [0,1] X [0,1].
 pub fn build_voronoi(points: &[cgmath::Point2<f64>]) -> Diagram {
     let mut event_queue = PriorityQueue::new();
 

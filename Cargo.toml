@@ -11,6 +11,7 @@ petgraph = "0.5.1"
 priority_queue = {git = "https://github.com/DanMaycock/priority_queue_rs.git"}
 slotmap = {version = "0.4.0", features = ["serde"]}
 cgmath = "0.17.0"
+log = "0.4.11"
 
 [dev-dependencies]
 piston_window = "0.112.0"

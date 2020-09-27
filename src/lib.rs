@@ -28,7 +28,7 @@
 //! ```
 mod beachline;
 mod boundingbox;
-pub mod delauney;
+mod delauney;
 pub mod diagram;
 mod event;
 pub mod vector2;
@@ -42,13 +42,8 @@ use event::Event;
 use event::EventType;
 use std::{collections::HashMap, f64};
 use vector2::compute_circumcircle_center;
-
-/// Generate a voronoi diagram using fortunes's algorithm from the supplied points.
-/// # Arguments
-/// * `points` - The points to construct the diagram from, these should be in the range [0,1] X [0,1].
-pub fn generate_diagram(points: &[cgmath::Point2<f64>]) -> Diagram {
-    voronoi_builder::build_voronoi(points)
-}
+pub use delauney::{DelauneyGraph, DelauneyVertex, get_delauney_graph};
+pub use voronoi_builder::build_voronoi;
 
 /// Perform [Lloyd's algorithm](https://en.wikipedia.org/wiki/Lloyd%27s_algorithm) on the supplied points.
 ///
@@ -63,7 +58,7 @@ pub fn lloyds_relaxation(
 ) -> Vec<cgmath::Point2<f64>> {
     let mut points = points.to_vec();
     for _ in 0..iterations {
-        let voronoi = generate_diagram(&points);
+        let voronoi = build_voronoi(&points);
         points.clear();
         for face in voronoi.get_face_indices() {
             points.push(voronoi.calculate_face_center(face));

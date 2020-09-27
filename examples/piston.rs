@@ -1,3 +1,4 @@
+use fortunes_algorithm::DelauneyVertex;
 use piston_window::*;
 use rand::Rng;
 
@@ -20,6 +21,22 @@ const DRAW_VORONOI_EDGES: bool = true;
 const DRAW_VORONOI_VERTICES: bool = true;
 
 const NUM_POINTS: usize = 5_000;
+
+pub struct BasicDelauneyVertex {
+    pub position: cgmath::Point2<f64>,
+    pub is_edge: bool,
+    pub area: f64,
+}
+
+impl DelauneyVertex for BasicDelauneyVertex {
+    fn new(position: cgmath::Point2<f64>, is_edge: bool, area: f64) -> Self {
+        Self {
+            position: position.into(),
+            is_edge,
+            area,
+        }
+    }
+}
 
 fn diagram_to_canvas(point: &cgmath::Point2<f64>) -> cgmath::Point2<f64> {
     cgmath::Point2::new(
@@ -96,9 +113,9 @@ fn main() {
 
     points = fortunes_algorithm::lloyds_relaxation(&points, 5);
 
-    let voronoi = fortunes_algorithm::generate_diagram(&points);
+    let voronoi = fortunes_algorithm::build_voronoi(&points);
 
-    let delauney = fortunes_algorithm::delauney::get_delauney_graph(&voronoi);
+    let delauney = fortunes_algorithm::get_delauney_graph::<BasicDelauneyVertex>(&voronoi);
     let delauney_vertices: Vec<cgmath::Point2<f64>> = delauney
         .node_indices()
         .map(|node| delauney.node_weight(node).unwrap().position.into())
